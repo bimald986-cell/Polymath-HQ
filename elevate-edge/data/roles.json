@@ -1,0 +1,106 @@
+[
+  {
+    "id": "hr-generalist",
+    "title": "HR Generalist",
+    "summary": "Supports the employee lifecycle: recruitment coordination, onboarding, employee relations, and HR administration.",
+    "skills": ["HRIS", "recruitment support", "employee relations", "policy communication", "onboarding", "confidentiality"],
+    "seniority": ["Junior", "Mid", "Senior"],
+    "bullets": [
+      "Coordinated end-to-end recruitment for X roles, reducing time-to-fill by Y%",
+      "Onboarded N new hires with structured checklists and 30-day follow-ups",
+      "Advised managers on policy queries and escalated complex cases appropriately",
+      "Maintained accurate employee records and supported audit readiness"
+    ]
+  },
+  {
+    "id": "hr-business-partner",
+    "title": "HR Business Partner",
+    "summary": "Partners with business leaders on people strategy, performance, structure, and change.",
+    "skills": ["stakeholder management", "workforce planning", "performance management", "coaching managers", "change support"],
+    "seniority": ["Mid", "Senior", "Lead"],
+    "bullets": [
+      "Advised leadership on org design and headcount planning for a team of N",
+      "Improved performance review completion rate from X% to Y%",
+      "Coached managers through sensitive employee relations cases",
+      "Led people workstream for a change initiative affecting N employees"
+    ]
+  },
+  {
+    "id": "marketing-executive",
+    "title": "Marketing Executive",
+    "summary": "Plans and executes campaigns across digital and offline channels to generate demand and brand awareness.",
+    "skills": ["campaign management", "content", "social media", "analytics", "SEO basics", "stakeholder coordination"],
+    "seniority": ["Junior", "Mid"],
+    "bullets": [
+      "Ran multi-channel campaigns that increased leads by X% quarter-over-quarter",
+      "Managed social calendar and improved engagement rate by Y%",
+      "Produced weekly performance reports and recommended optimisations",
+      "Coordinated agencies and internal teams to deliver campaigns on time"
+    ]
+  },
+  {
+    "id": "software-engineer",
+    "title": "Software Engineer",
+    "summary": "Designs, builds, and maintains software systems with a focus on reliability and user value.",
+    "skills": ["programming", "APIs", "databases", "testing", "code review", "Agile"],
+    "seniority": ["Junior", "Mid", "Senior"],
+    "bullets": [
+      "Built and shipped features used by N users with measurable performance gains",
+      "Improved API response times by X% through query and caching optimisations",
+      "Wrote automated tests that reduced production incidents",
+      "Collaborated with product and design in iterative delivery cycles"
+    ]
+  },
+  {
+    "id": "sales-executive",
+    "title": "Sales Executive",
+    "summary": "Generates revenue by prospecting, qualifying, and closing deals while managing client relationships.",
+    "skills": ["prospecting", "negotiation", "CRM", "pipeline management", "presentation", "objection handling"],
+    "seniority": ["Junior", "Mid", "Senior"],
+    "bullets": [
+      "Exceeded sales target by X% through disciplined pipeline management",
+      "Closed N new accounts with average deal size of Y",
+      "Maintained accurate CRM data and forecast reliability",
+      "Built long-term relationships that drove repeat business"
+    ]
+  },
+  {
+    "id": "operations-coordinator",
+    "title": "Operations Coordinator",
+    "summary": "Keeps day-to-day operations running smoothly through process, coordination, and problem-solving.",
+    "skills": ["coordination", "process improvement", "vendor management", "reporting", "prioritisation"],
+    "seniority": ["Junior", "Mid"],
+    "bullets": [
+      "Coordinated cross-team workflows that reduced handoff delays",
+      "Standardised SOPs and trained team members on updated processes",
+      "Tracked KPIs and flagged risks early to leadership",
+      "Managed vendor schedules and resolved operational blockers quickly"
+    ]
+  },
+  {
+    "id": "customer-support",
+    "title": "Customer Support Specialist",
+    "summary": "Resolves customer issues across channels while protecting satisfaction and retention.",
+    "skills": ["communication", "ticketing systems", "product knowledge", "empathy", "escalation"],
+    "seniority": ["Junior", "Mid"],
+    "bullets": [
+      "Handled N tickets/week with CSAT of X%",
+      "Reduced average resolution time by Y% through better macros and triage",
+      "Documented FAQs that lowered repeat contacts",
+      "Escalated complex cases with clear context for faster resolution"
+    ]
+  },
+  {
+    "id": "accountant",
+    "title": "Accountant",
+    "summary": "Maintains accurate financial records, reporting, and compliance support for the organisation.",
+    "skills": ["bookkeeping", "reconciliations", "reporting", "VAT/tax support", "Excel", "attention to detail"],
+    "seniority": ["Junior", "Mid", "Senior"],
+    "bullets": [
+      "Managed monthly close activities and delivered reports on schedule",
+      "Reconciled accounts and resolved discrepancies before audit",
+      "Supported tax/VAT filings with complete supporting schedules",
+      "Improved invoice processing turnaround by X%"
+    ]
+  }
+]
