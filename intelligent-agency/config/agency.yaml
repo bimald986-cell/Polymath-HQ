@@ -55,7 +55,7 @@ directors:
       - {name: "Ads Manager", description: "Paid ads and campaign performance.", keywords: [ads, ppc, campaign, budget, conversion, targeting]}
 
   - name: "Shares & Trading"
-    description: "Stock market, shares, trading strategy and risk."
+    description: "Stock market, shares, trading strategy and risk. General information only — not investment advice."
     keywords: [share, shares, stock, trading, trade, market, equity, portfolio, crypto, dividend, broker]
     agents:
       - {name: "Equity Analyst", description: "Analyses stocks and fundamentals.", keywords: [stock, equity, fundamental, valuation, earnings]}
@@ -64,22 +64,21 @@ directors:
       - {name: "Risk Manager", description: "Position sizing and risk control.", keywords: [risk, stoploss, position, hedge, exposure]}
 
   - name: "Finance"
-    description: "Accounting, budgeting, tax and personal/corporate finance."
+    description: "Accounting, budgeting, tax and personal/corporate finance. General information only — not professional financial advice."
     keywords: [finance, accounting, budget, tax, invoice, cashflow, expense, payroll, audit, loan]
     agents:
       - {name: "Accountant", description: "Bookkeeping and financial statements.", keywords: [accounting, ledger, statement, balance, bookkeeping]}
       - {name: "Budget Planner", description: "Budgets and forecasts.", keywords: [budget, forecast, plan, spending, allocation]}
-      - {name: "Tax Advisor", description: "Tax rules and filings (general info).", keywords: [tax, deduction, filing, vat, return]}
-      - {name: "Investment Advisor", description: "Savings and investment concepts.", keywords: [investment, savings, retirement, fund, interest]}
+      - {name: "Tax Advisor", description: "Tax rules and filings (general info only).", keywords: [tax, deduction, filing, vat, return]}
+      - {name: "Investment Advisor", description: "Savings and investment concepts (general info only).", keywords: [investment, savings, retirement, fund, interest]}
 
   - name: "Business"
     description: "Strategy, operations, HR and general management."
-    keywords: [business, strategy, operations, management, hr, hiring, startup, plan, process, legal]
+    keywords: [business, strategy, operations, management, hr, hiring, startup, plan, process]
     agents:
       - {name: "Strategist", description: "Business strategy and models.", keywords: [strategy, model, market, competitive, growth]}
       - {name: "Operations Manager", description: "Processes and efficiency.", keywords: [operations, process, workflow, efficiency, logistics]}
       - {name: "HR Partner", description: "Hiring, onboarding and people.", keywords: [hr, hiring, recruit, onboarding, employee, culture]}
-      - {name: "Legal Advisor", description: "Contracts and compliance (general info).", keywords: [legal, contract, compliance, policy, terms]}
 
   - name: "Product Development"
     description: "Product management, UX and quality assurance."
@@ -114,6 +113,57 @@ directors:
       - {name: "Embedded Engineer", description: "Microcontrollers and firmware.", keywords: [embedded, firmware, microcontroller, arduino, esp32]}
       - {name: "PCB Designer", description: "PCB layout and routing.", keywords: [pcb, layout, routing, board, gerber]}
       - {name: "Sensor Specialist", description: "Sensors and signal reading.", keywords: [sensor, signal, adc, measurement, calibration]}
+
+  - name: "Healthcare"
+    description: "General medical information, clinical concepts, wellness and public health. Not a substitute for a licensed clinician or emergency care."
+    keywords: [health, medical, medicine, doctor, clinic, patient, symptom, diagnosis, treatment, hospital, pharmacy, wellness, nursing]
+    agents:
+      - {name: "General Clinician Info", description: "Explains common conditions and care pathways (general info only).", keywords: [symptom, condition, diagnosis, treatment, doctor]}
+      - {name: "Pharmacy Guide", description: "Drug classes, interactions and adherence concepts (general info only).", keywords: [drug, medicine, dose, pharmacy, side-effect]}
+      - {name: "Public Health Advisor", description: "Prevention, screening and population health.", keywords: [vaccine, screening, prevention, epidemic, hygiene]}
+      - {name: "Mental Health Guide", description: "Stress, mood and basic coping resources (not therapy).", keywords: [anxiety, depression, stress, mental, counselling]}
+
+  - name: "Legal"
+    description: "Contracts, compliance, regulation and legal concepts. General information only — not legal advice."
+    keywords: [legal, law, lawyer, attorney, contract, compliance, regulation, litigation, court, statute, terms, gdpr]
+    agents:
+      - {name: "Contract Analyst", description: "Contract structure, clauses and negotiation points.", keywords: [contract, clause, agreement, nda, terms]}
+      - {name: "Compliance Officer", description: "Regulatory and policy compliance frameworks.", keywords: [compliance, regulation, policy, audit, gdpr]}
+      - {name: "Litigation Guide", description: "Court process and dispute concepts (general).", keywords: [litigation, court, lawsuit, dispute, evidence]}
+      - {name: "IP Advisor", description: "Copyright, trademark and patent basics.", keywords: [ip, patent, trademark, copyright, license]}
+
+  - name: "AI & Intelligence"
+    description: "Artificial intelligence, machine learning, agents, evaluation and applied intelligence systems."
+    keywords: [ai, artificial, intelligence, machine learning, ml, llm, model, agent, embedding, rag, prompt, neural, training]
+    agents:
+      - {name: "ML Engineer", description: "Models, training, evaluation and pipelines.", keywords: [model, training, dataset, metric, inference]}
+      - {name: "LLM Specialist", description: "Prompts, RAG, agents and evaluation.", keywords: [llm, prompt, rag, agent, context, token]}
+      - {name: "AI Product Strategist", description: "Use-cases, risks and product fit for AI.", keywords: [usecase, product, risk, adoption, roadmap]}
+      - {name: "Ethics & Safety Reviewer", description: "Bias, safety and responsible AI.", keywords: [ethics, bias, safety, alignment, responsible]}
+
+  - name: "Science"
+    description: "Natural sciences, experimental method and research design."
+    keywords: [science, physics, chemistry, biology, experiment, hypothesis, lab, peer-review]
+    agents:
+      - {name: "Research Methodologist", description: "Study design and evidence quality.", keywords: [method, experiment, sample, bias, evidence]}
+      - {name: "Life Sciences Guide", description: "Biology and related life-science topics.", keywords: [biology, cell, gene, organism, ecology]}
+      - {name: "Physical Sciences Guide", description: "Physics and chemistry concepts.", keywords: [physics, chemistry, energy, reaction, matter]}
+
+  - name: "Cybersecurity"
+    description: "Security architecture, threats, privacy and defensive practices."
+    keywords: [security, cyber, hack, malware, phishing, encryption, vulnerability, auth, privacy, firewall]
+    agents:
+      - {name: "Security Architect", description: "Secure design and controls.", keywords: [architecture, control, zero-trust, hardening]}
+      - {name: "Threat Analyst", description: "Threats, malware and incident concepts.", keywords: [threat, malware, phishing, incident, ioc]}
+      - {name: "Privacy Officer", description: "Data protection and privacy.", keywords: [privacy, personal-data, consent, retention]}
+
+  - name: "Data & Analytics"
+    description: "Data engineering, analytics, BI and decision support."
+    keywords: [data, analytics, bi, dashboard, warehouse, etl, metric, statistics, visualization]
+    agents:
+      - {name: "Data Engineer", description: "Pipelines, warehouses and quality.", keywords: [etl, pipeline, warehouse, schema, quality]}
+      - {name: "Analyst", description: "Metrics, reporting and insight.", keywords: [metric, dashboard, report, kpi, insight]}
+      - {name: "Statistician", description: "Inference and experimental stats.", keywords: [statistics, significance, regression, sample]}
 
   - name: "General"
     description: "Catch-all for anything that does not fit another field."

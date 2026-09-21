@@ -6,22 +6,43 @@ A hierarchical, multi-domain AI agent system.
                         President  (Atlas)
                             |  oversees everything
    ┌───────────┬───────────┼───────────┬───────────┐
-Education   Coding     Finance    Agriculture   ...   (Directors, one per field)
+Education   Coding     Finance    Healthcare   ...   (Directors, one per field)
    |            |          |            |
- Tutor      Debugger   Accountant   Crop Specialist   ...   (Agents, the workers)
+ Tutor      Debugger   Accountant   Clinician Info   ...   (Agents, the workers)
 ```
 
 - **One President** oversees every director and dispatches each request to the
   right field.
-- **Each Director** owns a single field (education, coding, hospitality,
-  marketing, shares & trading, finance, business, product development,
-  agriculture, automation, electronics, and a general catch-all) and routes
-  work to its own team.
+- **Each Director** owns a single field and routes work to its own team.
 - **Each Agent** is a specialist that actually does the work.
 
 The whole org chart lives in one file — [`config/agency.yaml`](config/agency.yaml).
 Add a new field or a new specialist by editing that file; **no code changes
 needed**.
+
+## Domains (Directors)
+
+| Field | Focus |
+|-------|--------|
+| Education | Teaching, curricula, lessons, assessment |
+| Learning | Study strategy, research skills, skill paths |
+| Coding | Software engineering, debug, DevOps |
+| Hospitality | Guests, bookings, events, menus |
+| Marketing | SEO, content, social, ads |
+| Shares & Trading | Equities, crypto, risk *(general info only)* |
+| Finance | Accounting, budget, tax *(general info only)* |
+| Business | Strategy, operations, HR |
+| Product Development | PM, UX, QA |
+| Agriculture | Crops, livestock, soil, pests |
+| Automation | Workflows, RPA, IoT |
+| Electronics | Circuits, embedded, PCB, sensors |
+| **Healthcare** | Clinical concepts, pharmacy, public & mental health *(not medical advice)* |
+| **Legal** | Contracts, compliance, litigation, IP *(not legal advice)* |
+| **AI & Intelligence** | ML, LLMs, agents, AI ethics |
+| **Science** | Research methods, life & physical sciences |
+| **Cybersecurity** | Architecture, threats, privacy |
+| **Data & Analytics** | Pipelines, BI, statistics |
+| General | Catch-all |
 
 ## Quick start
 
@@ -33,6 +54,8 @@ python cli.py tree
 
 # Ask "which field handles this?"
 python cli.py find "how do I fertilise my tomato crop"
+python cli.py find "review this NDA clause"
+python cli.py find "design a RAG pipeline"
 
 # Route a request all the way down and get an answer
 python cli.py ask  "debug my python API that returns 500 errors"
@@ -92,11 +115,11 @@ intelligent-agency/
 Append to `config/agency.yaml`:
 
 ```yaml
-  - name: "Healthcare"
-    description: "Clinical, wellness and medical information."
-    keywords: [health, medical, clinic, patient, wellness]
+  - name: "Real Estate"
+    description: "Property, leasing and valuation concepts."
+    keywords: [property, real-estate, lease, rent, valuation]
     agents:
-      - {name: "Nurse Advisor", description: "General health info.", keywords: [symptom, care, advice]}
+      - {name: "Leasing Advisor", description: "Lease terms and tenant basics.", keywords: [lease, rent, tenant]}
 ```
 
 Run `python cli.py tree` and it appears immediately.
@@ -110,8 +133,10 @@ pytest -q
 
 ## Notes & honesty
 
-- The specialists in finance, tax, legal and healthcare-style fields provide
-  **general information only**, not professional/licensed advice.
+- **Healthcare, Legal, Finance, Shares & Trading** specialists provide **general
+  information only**. They are **not** licensed medical, legal, tax, or
+  investment advice. For emergencies or binding decisions, consult a qualified
+  professional in your jurisdiction.
 - Answer quality depends on the model you connect. The mock backend is for
   demonstrating routing, not for real answers.
 

@@ -15,7 +15,7 @@ def _pres():
 
 def test_agency_builds():
     p = _pres()
-    assert len(p.directors) >= 10
+    assert len(p.directors) >= 16
     assert all(len(d.agents) >= 1 for d in p.directors)
 
 
@@ -41,6 +41,36 @@ def test_routes_shares():
     p = _pres()
     d = p.best_director("should I buy this stock share on the market")
     assert d.name == "Shares & Trading"
+
+
+def test_routes_healthcare():
+    p = _pres()
+    d = p.best_director("what does this symptom and diagnosis usually mean")
+    assert d.name == "Healthcare"
+
+
+def test_routes_legal():
+    p = _pres()
+    d = p.best_director("review this NDA contract clause for compliance")
+    assert d.name == "Legal"
+
+
+def test_routes_ai():
+    p = _pres()
+    d = p.best_director("design a RAG pipeline with an llm agent")
+    assert d.name == "AI & Intelligence"
+
+
+def test_routes_cybersecurity():
+    p = _pres()
+    d = p.best_director("phishing malware vulnerability encryption")
+    assert d.name == "Cybersecurity"
+
+
+def test_routes_data_analytics():
+    p = _pres()
+    d = p.best_director("build an etl warehouse dashboard metric")
+    assert d.name == "Data & Analytics"
 
 
 def test_handle_returns_trace():
