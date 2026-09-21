@@ -165,6 +165,70 @@ directors:
       - {name: "Analyst", description: "Metrics, reporting and insight.", keywords: [metric, dashboard, report, kpi, insight]}
       - {name: "Statistician", description: "Inference and experimental stats.", keywords: [statistics, significance, regression, sample]}
 
+  - name: "Engineering"
+    description: "Civil, mechanical and structural engineering beyond electronics."
+    keywords: [engineering, civil, mechanical, structural, construction, bridge, building, load, thermodynamics, hvac, manufacturing]
+    agents:
+      - {name: "Civil Engineer", description: "Infrastructure, site and civil works.", keywords: [civil, infrastructure, road, drainage, site]}
+      - {name: "Structural Engineer", description: "Loads, materials and structural design.", keywords: [structural, load, beam, foundation, steel, concrete]}
+      - {name: "Mechanical Engineer", description: "Machines, thermodynamics and manufacturing.", keywords: [mechanical, thermodynamics, hvac, machine, manufacturing]}
+
+  - name: "Environment & Climate"
+    description: "Climate, sustainability, conservation and environmental policy."
+    keywords: [environment, climate, sustainability, carbon, emissions, conservation, pollution, renewable, ecology, green]
+    agents:
+      - {name: "Climate Analyst", description: "Climate science and emissions.", keywords: [climate, carbon, emissions, warming, pathway]}
+      - {name: "Sustainability Advisor", description: "ESG, green practice and resource use.", keywords: [sustainability, esg, green, recycle, resource]}
+      - {name: "Conservation Guide", description: "Biodiversity and habitat protection.", keywords: [conservation, biodiversity, habitat, wildlife, protected]}
+
+  - name: "Government & Policy"
+    description: "Public policy, governance, regulation and civic process."
+    keywords: [government, policy, public, governance, civic, legislation, ministry, parliament, regulation, citizen]
+    agents:
+      - {name: "Policy Analyst", description: "Policy design and impact.", keywords: [policy, impact, legislation, reform, analysis]}
+      - {name: "Governance Advisor", description: "Institutions and public administration.", keywords: [governance, administration, ministry, agency, civic]}
+      - {name: "Regulatory Guide", description: "How regulations are made and applied.", keywords: [regulation, rulemaking, compliance, statute, gazette]}
+
+  - name: "Real Estate"
+    description: "Property, leasing, valuation and development concepts."
+    keywords: [real-estate, property, lease, rent, tenant, landlord, valuation, mortgage, zoning, development]
+    agents:
+      - {name: "Leasing Advisor", description: "Lease terms and tenant/landlord basics.", keywords: [lease, rent, tenant, landlord, occupancy]}
+      - {name: "Valuation Guide", description: "Property value and appraisal concepts.", keywords: [valuation, appraisal, comps, price, market]}
+      - {name: "Development Planner", description: "Zoning, permits and project basics.", keywords: [development, zoning, permit, project, land]}
+
+  - name: "Media & Journalism"
+    description: "News, reporting, editing and media production."
+    keywords: [media, journalism, news, reporter, editor, article, broadcast, podcast, press, story]
+    agents:
+      - {name: "Reporter", description: "Story structure, sources and angles.", keywords: [reporter, story, source, interview, angle]}
+      - {name: "Editor", description: "Copy editing, fact-check and structure.", keywords: [editor, copy, fact-check, headline, structure]}
+      - {name: "Media Producer", description: "Broadcast, podcast and multi-format production.", keywords: [broadcast, podcast, production, format, segment]}
+
+  - name: "Languages & Translation"
+    description: "Language learning, translation and localization."
+    keywords: [language, translation, translate, localization, grammar, vocabulary, bilingual, interpreter, linguistics]
+    agents:
+      - {name: "Translator", description: "Meaning-preserving translation between languages.", keywords: [translate, translation, bilingual, meaning]}
+      - {name: "Language Tutor", description: "Grammar, vocabulary and practice plans.", keywords: [grammar, vocabulary, tutor, practice, fluency]}
+      - {name: "Localization Specialist", description: "Locale, culture and product localization.", keywords: [localization, locale, culture, region, l10n]}
+
+  - name: "Psychology"
+    description: "Psychological concepts, behaviour and learning science. General information only — not therapy or clinical diagnosis."
+    keywords: [psychology, behaviour, cognition, personality, motivation, bias, therapy-concepts, developmental]
+    agents:
+      - {name: "Cognitive Guide", description: "Memory, attention and decision biases.", keywords: [cognition, memory, attention, bias, decision]}
+      - {name: "Behavioural Guide", description: "Habits, motivation and behaviour change.", keywords: [behaviour, habit, motivation, reward, change]}
+      - {name: "Developmental Guide", description: "Lifespan and developmental concepts.", keywords: [developmental, child, adolescent, lifespan, attachment]}
+
+  - name: "Philosophy & Ethics"
+    description: "Philosophy, moral reasoning and applied ethics beyond AI-only safety."
+    keywords: [philosophy, ethics, moral, logic, epistemology, metaphysics, virtue, justice, argument]
+    agents:
+      - {name: "Moral Philosopher", description: "Ethical frameworks and applied dilemmas.", keywords: [ethics, moral, virtue, utilitarianism, deontology]}
+      - {name: "Logic & Argument Coach", description: "Arguments, fallacies and clear reasoning.", keywords: [logic, argument, fallacy, premise, reasoning]}
+      - {name: "History of Ideas Guide", description: "Major philosophical traditions and thinkers.", keywords: [philosophy, epistemology, metaphysics, tradition, thinker]}
+
   - name: "General"
     description: "Catch-all for anything that does not fit another field."
     keywords: [general, misc, other, anything, help, question]

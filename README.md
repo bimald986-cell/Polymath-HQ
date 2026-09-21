@@ -25,7 +25,7 @@ Runs offline with a mock LLM by default. See [`intelligent-agency/README.md`](in
 
 ## Domains (Directors)
 
-Education · Learning · Coding · Hospitality · Marketing · Shares & Trading · Finance · Business · Product Development · Agriculture · Automation · Electronics · **Healthcare** · **Legal** · **AI & Intelligence** · **Science** · **Cybersecurity** · **Data & Analytics** · General
+Education · Learning · Coding · Hospitality · Marketing · Shares & Trading · Finance · Business · Product Development · Agriculture · Automation · Electronics · Healthcare · Legal · AI & Intelligence · Science · Cybersecurity · Data & Analytics · **Engineering** · **Environment & Climate** · **Government & Policy** · **Real Estate** · **Media & Journalism** · **Languages & Translation** · **Psychology** · **Philosophy & Ethics** · General
 
 ## License
 

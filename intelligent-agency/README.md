@@ -36,12 +36,20 @@ needed**.
 | Agriculture | Crops, livestock, soil, pests |
 | Automation | Workflows, RPA, IoT |
 | Electronics | Circuits, embedded, PCB, sensors |
-| **Healthcare** | Clinical concepts, pharmacy, public & mental health *(not medical advice)* |
-| **Legal** | Contracts, compliance, litigation, IP *(not legal advice)* |
-| **AI & Intelligence** | ML, LLMs, agents, AI ethics |
-| **Science** | Research methods, life & physical sciences |
-| **Cybersecurity** | Architecture, threats, privacy |
-| **Data & Analytics** | Pipelines, BI, statistics |
+| Healthcare | Clinical concepts, pharmacy, public & mental health *(not medical advice)* |
+| Legal | Contracts, compliance, litigation, IP *(not legal advice)* |
+| AI & Intelligence | ML, LLMs, agents, AI ethics |
+| Science | Research methods, life & physical sciences |
+| Cybersecurity | Architecture, threats, privacy |
+| Data & Analytics | Pipelines, BI, statistics |
+| **Engineering** | Civil, mechanical, structural |
+| **Environment & Climate** | Climate, sustainability, conservation |
+| **Government & Policy** | Public policy, governance, regulation |
+| **Real Estate** | Property, leasing, valuation |
+| **Media & Journalism** | News, editing, production |
+| **Languages & Translation** | Translation, tutoring, localization |
+| **Psychology** | Cognition, behaviour, development *(not therapy)* |
+| **Philosophy & Ethics** | Moral reasoning, logic, history of ideas |
 | General | Catch-all |
 
 ## Quick start
@@ -56,6 +64,7 @@ python cli.py tree
 python cli.py find "how do I fertilise my tomato crop"
 python cli.py find "review this NDA clause"
 python cli.py find "design a RAG pipeline"
+python cli.py find "structural load on a concrete beam"
 
 # Route a request all the way down and get an answer
 python cli.py ask  "debug my python API that returns 500 errors"
@@ -115,11 +124,11 @@ intelligent-agency/
 Append to `config/agency.yaml`:
 
 ```yaml
-  - name: "Real Estate"
-    description: "Property, leasing and valuation concepts."
-    keywords: [property, real-estate, lease, rent, valuation]
+  - name: "Sports"
+    description: "Training, coaching and sports science."
+    keywords: [sport, training, coach, fitness, athlete]
     agents:
-      - {name: "Leasing Advisor", description: "Lease terms and tenant basics.", keywords: [lease, rent, tenant]}
+      - {name: "Coach", description: "Training plans and technique.", keywords: [coach, training, technique]}
 ```
 
 Run `python cli.py tree` and it appears immediately.
@@ -133,10 +142,10 @@ pytest -q
 
 ## Notes & honesty
 
-- **Healthcare, Legal, Finance, Shares & Trading** specialists provide **general
-  information only**. They are **not** licensed medical, legal, tax, or
-  investment advice. For emergencies or binding decisions, consult a qualified
-  professional in your jurisdiction.
+- **Healthcare, Psychology, Legal, Finance, Shares & Trading** specialists provide
+  **general information only**. They are **not** licensed medical, psychological,
+  legal, tax, or investment advice. For emergencies or binding decisions, consult
+  a qualified professional in your jurisdiction.
 - Answer quality depends on the model you connect. The mock backend is for
   demonstrating routing, not for real answers.
 

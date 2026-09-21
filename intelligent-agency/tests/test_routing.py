@@ -15,7 +15,7 @@ def _pres():
 
 def test_agency_builds():
     p = _pres()
-    assert len(p.directors) >= 16
+    assert len(p.directors) >= 24
     assert all(len(d.agents) >= 1 for d in p.directors)
 
 
@@ -71,6 +71,54 @@ def test_routes_data_analytics():
     p = _pres()
     d = p.best_director("build an etl warehouse dashboard metric")
     assert d.name == "Data & Analytics"
+
+
+def test_routes_engineering():
+    p = _pres()
+    d = p.best_director("structural load beam foundation civil engineering")
+    assert d.name == "Engineering"
+
+
+def test_routes_environment():
+    p = _pres()
+    d = p.best_director("climate carbon emissions sustainability")
+    assert d.name == "Environment & Climate"
+
+
+def test_routes_government():
+    p = _pres()
+    d = p.best_director("public policy legislation governance ministry")
+    assert d.name == "Government & Policy"
+
+
+def test_routes_real_estate():
+    p = _pres()
+    d = p.best_director("property lease rent tenant valuation")
+    assert d.name == "Real Estate"
+
+
+def test_routes_media():
+    p = _pres()
+    d = p.best_director("journalism news reporter editor article")
+    assert d.name == "Media & Journalism"
+
+
+def test_routes_languages():
+    p = _pres()
+    d = p.best_director("translation grammar vocabulary localization")
+    assert d.name == "Languages & Translation"
+
+
+def test_routes_psychology():
+    p = _pres()
+    d = p.best_director("psychology cognition behaviour motivation bias")
+    assert d.name == "Psychology"
+
+
+def test_routes_philosophy():
+    p = _pres()
+    d = p.best_director("philosophy ethics moral logic epistemology")
+    assert d.name == "Philosophy & Ethics"
 
 
 def test_handle_returns_trace():
