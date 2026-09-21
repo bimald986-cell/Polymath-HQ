@@ -1,0 +1,122 @@
+# =====================================================================
+# Intelligent Agency org chart.
+# Edit THIS file to add a new field (director) or a new specialist (agent).
+# No code changes are needed -- loader.py reads everything from here.
+# =====================================================================
+
+president:
+  name: "Atlas"
+  description: "Chief overseer. Routes every request to the right field."
+
+directors:
+  - name: "Education"
+    description: "Teaching, courseware, curricula and classroom delivery."
+    keywords: [teaching, teach, lesson, curriculum, classroom, course, syllabus, pedagogy, exam, grading, school]
+    agents:
+      - {name: "Curriculum Designer", description: "Designs curricula and syllabi.", keywords: [curriculum, syllabus, standards, outcomes, scope]}
+      - {name: "Lesson Planner", description: "Builds lesson plans and activities.", keywords: [lesson, plan, activity, worksheet, objective]}
+      - {name: "Tutor", description: "Explains concepts and answers student questions.", keywords: [tutor, explain, homework, concept, question]}
+      - {name: "Assessment Designer", description: "Creates quizzes, tests and rubrics.", keywords: [assessment, quiz, test, rubric, grade, exam]}
+
+  - name: "Learning"
+    description: "Self-directed learning, study strategy and research skills."
+    keywords: [learning, study, research, skill, revision, memory, notes, flashcards, upskilling]
+    agents:
+      - {name: "Study Coach", description: "Study plans, habits and revision schedules.", keywords: [study, schedule, habit, revision, focus, plan]}
+      - {name: "Researcher", description: "Finds, summarises and cites sources.", keywords: [research, source, summarise, cite, literature, paper]}
+      - {name: "Skill Path Planner", description: "Maps step-by-step skill roadmaps.", keywords: [skill, roadmap, path, career, learn, progression]}
+
+  - name: "Coding"
+    description: "Software engineering: architecture, backend, frontend, ops."
+    keywords: [coding, code, software, programming, bug, api, backend, frontend, devops, deploy, refactor, python, javascript]
+    agents:
+      - {name: "Architect", description: "System design and architecture decisions.", keywords: [architecture, design, system, scalability, pattern]}
+      - {name: "Backend Engineer", description: "APIs, databases and server logic.", keywords: [backend, api, database, server, endpoint, sql]}
+      - {name: "Frontend Engineer", description: "UI, components and client-side code.", keywords: [frontend, ui, react, component, css, browser]}
+      - {name: "DevOps Engineer", description: "CI/CD, containers and infrastructure.", keywords: [devops, deploy, docker, ci, cd, infrastructure, kubernetes]}
+      - {name: "Debugger", description: "Finds and fixes bugs.", keywords: [bug, debug, error, fix, stacktrace, crash]}
+
+  - name: "Hospitality"
+    description: "Guest experience, bookings, food service and events."
+    keywords: [hospitality, hotel, guest, booking, reservation, restaurant, menu, event, catering, tourism]
+    agents:
+      - {name: "Guest Services", description: "Handles guest requests and complaints.", keywords: [guest, service, complaint, checkin, concierge]}
+      - {name: "Booking Manager", description: "Reservations and availability.", keywords: [booking, reservation, availability, room, calendar]}
+      - {name: "Menu Planner", description: "Menus, recipes and food service.", keywords: [menu, recipe, food, dish, catering, kitchen]}
+      - {name: "Event Coordinator", description: "Plans and runs events.", keywords: [event, wedding, banquet, schedule, venue]}
+
+  - name: "Marketing"
+    description: "Brand, content, SEO, social media and advertising."
+    keywords: [marketing, brand, seo, content, social, ads, campaign, copy, audience, growth, email]
+    agents:
+      - {name: "SEO Specialist", description: "Keywords, ranking and on-page SEO.", keywords: [seo, keyword, ranking, search, backlink, traffic]}
+      - {name: "Content Writer", description: "Blogs, copy and content plans.", keywords: [content, blog, copy, article, writing, newsletter]}
+      - {name: "Social Media Manager", description: "Social posts and community.", keywords: [social, instagram, post, community, engagement, tiktok]}
+      - {name: "Ads Manager", description: "Paid ads and campaign performance.", keywords: [ads, ppc, campaign, budget, conversion, targeting]}
+
+  - name: "Shares & Trading"
+    description: "Stock market, shares, trading strategy and risk."
+    keywords: [share, shares, stock, trading, trade, market, equity, portfolio, crypto, dividend, broker]
+    agents:
+      - {name: "Equity Analyst", description: "Analyses stocks and fundamentals.", keywords: [stock, equity, fundamental, valuation, earnings]}
+      - {name: "Technical Analyst", description: "Charts, indicators and entries.", keywords: [chart, technical, indicator, trend, candlestick]}
+      - {name: "Crypto Analyst", description: "Digital assets and tokens.", keywords: [crypto, token, blockchain, bitcoin, wallet]}
+      - {name: "Risk Manager", description: "Position sizing and risk control.", keywords: [risk, stoploss, position, hedge, exposure]}
+
+  - name: "Finance"
+    description: "Accounting, budgeting, tax and personal/corporate finance."
+    keywords: [finance, accounting, budget, tax, invoice, cashflow, expense, payroll, audit, loan]
+    agents:
+      - {name: "Accountant", description: "Bookkeeping and financial statements.", keywords: [accounting, ledger, statement, balance, bookkeeping]}
+      - {name: "Budget Planner", description: "Budgets and forecasts.", keywords: [budget, forecast, plan, spending, allocation]}
+      - {name: "Tax Advisor", description: "Tax rules and filings (general info).", keywords: [tax, deduction, filing, vat, return]}
+      - {name: "Investment Advisor", description: "Savings and investment concepts.", keywords: [investment, savings, retirement, fund, interest]}
+
+  - name: "Business"
+    description: "Strategy, operations, HR and general management."
+    keywords: [business, strategy, operations, management, hr, hiring, startup, plan, process, legal]
+    agents:
+      - {name: "Strategist", description: "Business strategy and models.", keywords: [strategy, model, market, competitive, growth]}
+      - {name: "Operations Manager", description: "Processes and efficiency.", keywords: [operations, process, workflow, efficiency, logistics]}
+      - {name: "HR Partner", description: "Hiring, onboarding and people.", keywords: [hr, hiring, recruit, onboarding, employee, culture]}
+      - {name: "Legal Advisor", description: "Contracts and compliance (general info).", keywords: [legal, contract, compliance, policy, terms]}
+
+  - name: "Product Development"
+    description: "Product management, UX and quality assurance."
+    keywords: [development, product, feature, roadmap, ux, design, prototype, qa, testing, backlog]
+    agents:
+      - {name: "Product Manager", description: "Roadmaps, priorities and requirements.", keywords: [product, roadmap, requirement, backlog, priority]}
+      - {name: "UX Designer", description: "User flows and interface design.", keywords: [ux, ui, wireframe, prototype, usability, design]}
+      - {name: "QA Engineer", description: "Test plans and quality checks.", keywords: [qa, test, quality, regression, coverage]}
+
+  - name: "Agriculture"
+    description: "Crops, livestock, soil and irrigation."
+    keywords: [agriculture, farm, farming, crop, soil, livestock, irrigation, fertilizer, harvest, pest, seed]
+    agents:
+      - {name: "Crop Specialist", description: "Planting, fertilising and harvest.", keywords: [crop, plant, fertilizer, harvest, yield, seed]}
+      - {name: "Livestock Specialist", description: "Animal husbandry and feed.", keywords: [livestock, cattle, poultry, feed, animal, dairy]}
+      - {name: "Soil & Irrigation Expert", description: "Soil health and watering.", keywords: [soil, irrigation, water, ph, nutrient, drainage]}
+      - {name: "Pest Manager", description: "Pest and disease control.", keywords: [pest, disease, insect, spray, control]}
+
+  - name: "Automation"
+    description: "Workflow automation, RPA and IoT control."
+    keywords: [automation, automate, workflow, rpa, script, iot, integration, zapier, trigger, pipeline]
+    agents:
+      - {name: "Workflow Automator", description: "Automates repetitive workflows.", keywords: [workflow, automate, task, trigger, integration]}
+      - {name: "RPA Developer", description: "Robotic process automation bots.", keywords: [rpa, bot, macro, screen, repetitive]}
+      - {name: "IoT Controller", description: "Connected devices and sensors.", keywords: [iot, device, sensor, home, control, mqtt]}
+
+  - name: "Electronics"
+    description: "Circuits, embedded systems, PCBs and sensors."
+    keywords: [electronics, circuit, embedded, pcb, sensor, microcontroller, arduino, voltage, resistor, firmware]
+    agents:
+      - {name: "Circuit Designer", description: "Analog and digital circuits.", keywords: [circuit, schematic, voltage, resistor, capacitor]}
+      - {name: "Embedded Engineer", description: "Microcontrollers and firmware.", keywords: [embedded, firmware, microcontroller, arduino, esp32]}
+      - {name: "PCB Designer", description: "PCB layout and routing.", keywords: [pcb, layout, routing, board, gerber]}
+      - {name: "Sensor Specialist", description: "Sensors and signal reading.", keywords: [sensor, signal, adc, measurement, calibration]}
+
+  - name: "General"
+    description: "Catch-all for anything that does not fit another field."
+    keywords: [general, misc, other, anything, help, question]
+    agents:
+      - {name: "Generalist", description: "Handles broad or cross-domain requests.", keywords: [general, anything, help, other, misc]}
