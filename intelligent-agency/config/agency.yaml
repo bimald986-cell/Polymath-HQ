@@ -24,7 +24,7 @@ directors:
     agents:
       - {name: "Study Coach", description: "Study plans, habits and revision schedules.", keywords: [study, schedule, habit, revision, focus, plan]}
       - {name: "Researcher", description: "Finds, summarises and cites sources.", keywords: [research, source, summarise, cite, literature, paper]}
-      - {name: "Skill Path Planner", description: "Maps step-by-step skill roadmaps.", keywords: [skill, roadmap, path, career, learn, progression]}
+      - {name: "Skill Path Planner", description: "Maps step-by-step skill roadmaps.", keywords: [skill, roadmap, path, progression]}
 
   - name: "Coding"
     description: "Software engineering: architecture, backend, frontend, ops."
@@ -74,11 +74,11 @@ directors:
 
   - name: "Business"
     description: "Strategy, operations, HR and general management."
-    keywords: [business, strategy, operations, management, hr, hiring, startup, plan, process]
+    keywords: [business, strategy, operations, management, startup, plan, process]
     agents:
       - {name: "Strategist", description: "Business strategy and models.", keywords: [strategy, model, market, competitive, growth]}
       - {name: "Operations Manager", description: "Processes and efficiency.", keywords: [operations, process, workflow, efficiency, logistics]}
-      - {name: "HR Partner", description: "Hiring, onboarding and people.", keywords: [hr, hiring, recruit, onboarding, employee, culture]}
+      - {name: "HR Partner", description: "Hiring, onboarding and people operations.", keywords: [hr, hiring, recruit, onboarding, employee, culture]}
 
   - name: "Product Development"
     description: "Product management, UX and quality assurance."
@@ -228,6 +228,16 @@ directors:
       - {name: "Moral Philosopher", description: "Ethical frameworks and applied dilemmas.", keywords: [ethics, moral, virtue, utilitarianism, deontology]}
       - {name: "Logic & Argument Coach", description: "Arguments, fallacies and clear reasoning.", keywords: [logic, argument, fallacy, premise, reasoning]}
       - {name: "History of Ideas Guide", description: "Major philosophical traditions and thinkers.", keywords: [philosophy, epistemology, metaphysics, tradition, thinker]}
+
+  - name: "Career Services"
+    description: "Elevate Edge career services — CV/resume, LinkedIn, interview prep, role guidance and job-search materials. Not a job guarantee."
+    keywords: [career, resume, cv, curriculum-vitae, linkedin, interview, jobseeker, job-search, cover-letter, portfolio, elevate, edge, shortlist, application]
+    agents:
+      - {name: "CV Writer", description: "Resume/CV structure, bullets and role-targeted rewrites.", keywords: [resume, cv, curriculum-vitae, bullets, rewrite, template]}
+      - {name: "LinkedIn Optimizer", description: "Profile headline, about, experience and visibility.", keywords: [linkedin, headline, profile, networking, about]}
+      - {name: "Interview Coach", description: "Interview structure, STAR stories and common questions.", keywords: [interview, star, questions, prep, coaching]}
+      - {name: "Role Guide", description: "Explains jobs, skills and what employers look for.", keywords: [role, job-description, skills, seniority, pathway]}
+      - {name: "Job Search Advisor", description: "Applications, targeting and search process.", keywords: [job-search, application, shortlist, apply, targeting]}
 
   - name: "General"
     description: "Catch-all for anything that does not fit another field."

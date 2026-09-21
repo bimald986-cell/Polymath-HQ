@@ -15,7 +15,7 @@ def _pres():
 
 def test_agency_builds():
     p = _pres()
-    assert len(p.directors) >= 24
+    assert len(p.directors) >= 25
     assert all(len(d.agents) >= 1 for d in p.directors)
 
 
@@ -119,6 +119,12 @@ def test_routes_philosophy():
     p = _pres()
     d = p.best_director("philosophy ethics moral logic epistemology")
     assert d.name == "Philosophy & Ethics"
+
+
+def test_routes_career_services():
+    p = _pres()
+    d = p.best_director("rewrite my resume cv linkedin interview job search")
+    assert d.name == "Career Services"
 
 
 def test_handle_returns_trace():
