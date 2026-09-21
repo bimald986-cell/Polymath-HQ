@@ -9,7 +9,8 @@
     set AGENCY_LLM_MODEL=gemma2:2b
     python app.py
 
-Open http://127.0.0.1:5060
+Open http://127.0.0.1:8088
+(Do not use port 5060 — Chrome blocks it as ERR_UNSAFE_PORT.)
 """
 from __future__ import annotations
 
@@ -121,7 +122,6 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:1.5rem}
   </nav>
 </header>
 <main>
-  <!-- HOME -->
   <section id="home" class="view active">
     <div class="hero">
       <div class="panel">
@@ -147,7 +147,6 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:1.5rem}
     </div>
   </section>
 
-  <!-- PACKAGES -->
   <section id="packages" class="view">
     <h2>Service packages</h2>
     <p class="lead">Manual Elevate Edge services (delivered by you as the HR professional). Prices are guides—adjust anytime.</p>
@@ -183,7 +182,6 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:1.5rem}
     </div>
   </section>
 
-  <!-- CV BUILDER -->
   <section id="cv" class="view">
     <h2>CV Builder</h2>
     <p class="lead">Fill the form · pick a template · print to PDF from your browser (Ctrl+P).</p>
@@ -214,7 +212,6 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:1.5rem}
     </div>
   </section>
 
-  <!-- ROLES -->
   <section id="roles" class="view">
     <h2>Role Guide</h2>
     <p class="lead">Understand common roles and copy editable bullet ideas into your CV.</p>
@@ -224,7 +221,6 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:1.5rem}
     </div>
   </section>
 
-  <!-- INTERVIEW -->
   <section id="interview" class="view">
     <h2>Interview Coach</h2>
     <p class="lead">Draft a STAR answer. Use AI if connected, or write it yourself.</p>
@@ -253,12 +249,10 @@ function show(id){
 navBtns.forEach(b => b.onclick = () => show(b.dataset.view));
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => show(b.dataset.go));
 
-// Health
 fetch('/api/health').then(r=>r.json()).then(j=>{
   $('healthLine').textContent = `AI mode: ${j.llm_mode} · model: ${j.model} · roles loaded: ${j.roles}`;
 }).catch(()=>{$('healthLine').textContent='API offline';});
 
-// CV
 function renderCv(){
   const tpl = $('tpl').value;
   const prev = $('preview');
@@ -314,7 +308,6 @@ $('btnAiBullets').onclick = async ()=>{
   finally{$('btnAiBullets').disabled=false;}
 };
 
-// Roles
 let ROLES=[];
 fetch('/api/roles').then(r=>r.json()).then(list=>{
   ROLES=list;
@@ -344,7 +337,6 @@ fetch('/api/roles').then(r=>r.json()).then(list=>{
   });
 });
 
-// Interview
 $('btnStar').onclick = async ()=>{
   $('ivOut').textContent='Working…';
   $('btnStar').disabled=true;
@@ -427,7 +419,8 @@ def api_star():
 
 def main():
     host = os.getenv("ELEVATE_HOST", "127.0.0.1")
-    port = int(os.getenv("ELEVATE_PORT", "5060"))
+    # 8088 — safe in Chrome. Avoid 5060 (SIP; ERR_UNSAFE_PORT).
+    port = int(os.getenv("ELEVATE_PORT", "8088"))
     print(f"Elevate Edge → http://{host}:{port}")
     print("Stop with Ctrl+C")
     app.run(host=host, port=port, debug=False)
