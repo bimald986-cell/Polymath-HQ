@@ -1,0 +1,49 @@
+name: AstroLab Deep Reading QA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [astrolab-deep-reading-qa]
+    paths:
+      - "qa/astrolab_deep_reading/**"
+      - ".github/workflows/astrolab-deep-reading.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deep-reading:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Polymath HQ
+        uses: actions/checkout@v4
+        with:
+          path: Polymath-HQ
+
+      - name: Checkout AstroLab public-beta source
+        uses: actions/checkout@v4
+        with:
+          repository: bimald986-cell/astrolab-v6
+          ref: release/public-beta
+          path: astrolab-v6
+          token: ${{ secrets.ASTROLAB_QA_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install AstroLab
+        run: pip install -r astrolab-v6/requirements.txt
+
+      - name: Run deep-reading matrix
+        env:
+          ASTROLAB_REPO: ${{ github.workspace }}/astrolab-v6
+        run: python Polymath-HQ/qa/astrolab_deep_reading/run_audit.py --output qa-results
+
+      - name: Upload QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: astrolab-deep-reading-qa
+          path: qa-results/
+          if-no-files-found: warn
