@@ -1,0 +1,54 @@
+name: Horizon Scheduled Cycle
+
+on:
+  schedule:
+    - cron: '17 */4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: horizon-scheduled-cycle
+  cancel-in-progress: false
+
+jobs:
+  horizon-cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install agency
+        working-directory: intelligent-agency
+        run: pip install -r requirements.txt
+      - name: Run tests before Horizon cycle
+        working-directory: intelligent-agency
+        run: pytest -q
+      - name: Run one Horizon cycle
+        working-directory: intelligent-agency
+        env:
+          HORIZON_STATE_DIR: .horizon
+        run: |
+          python - <<'PY'
+          import os, sys
+          sys.path.insert(0, 'src')
+          from agency import build_agency
+          from agency.runtime import HorizonRuntime
+          p = build_agency()
+          runtime = HorizonRuntime(p.advisor, interval_seconds=14400)
+          result = runtime.run_once(
+              'Run a scheduled HQ improvement scan. Inspect currently available HQ context, identify the highest-value verified improvement, and produce an auditable recommendation. Do not merge or perform consequential external actions.'
+          )
+          print(result)
+          PY
+      - name: Upload Horizon audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: horizon-audit-${{ github.run_id }}
+          path: intelligent-agency/.horizon/
+          if-no-files-found: warn
+          retention-days: 30
