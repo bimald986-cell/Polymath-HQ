@@ -7,20 +7,16 @@ from typing import List
 
 
 class Role(str, Enum):
-    """Where an actor sits in the org chart."""
+    """Where an actor sits in the HQ org chart."""
     PRESIDENT = "president"
+    PRESIDENT_ADVISOR = "president_advisor"
     DIRECTOR = "director"
     AGENT = "agent"
 
 
 @dataclass
 class Node:
-    """Base class shared by President, Director and Agent.
-
-    ``keywords`` power the routing engine: a query is matched against the
-    name, description and keywords of every node to decide who should handle
-    it. ``system_prompt`` is the persona/instructions handed to the LLM.
-    """
+    """Base class shared by President, President Advisor, Director and Agent."""
     name: str
     role: Role
     description: str = ""

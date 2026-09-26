@@ -1,0 +1,53 @@
+version: 1
+capabilities:
+  orchestration:
+    status: foundation
+    owner: director
+    inspirations: [the-agency]
+  persistent_handoffs:
+    status: planned
+    owner: director
+    inspirations: [the-agency]
+  layered_memory:
+    status: planned
+    owner: memory-curator
+    inspirations: [tencentdb-agent-memory, memoryhub]
+  skill_library:
+    status: planned
+    owner: memory-curator
+    inspirations: [tencentdb-agent-memory]
+  wiki_knowledge:
+    status: planned
+    owner: knowledge-curator
+    inspirations: [tencentdb-agent-memory]
+  code_graph:
+    status: planned
+    owner: code-intelligence
+    inspirations: [tencentdb-agent-memory]
+  browser_operation:
+    status: adapter-planned
+    owner: browser-operator
+    inspirations: [browser-use]
+    approval_required_for_external_side_effects: true
+  software_delivery:
+    status: existing-partial
+    owner: builder
+  research:
+    status: existing-partial
+    owner: researcher
+  media_production:
+    status: architecture-planned
+    owner: media-producer
+    inspirations: [openmontage]
+    implementation_note: "Reimplement architecture independently; do not copy AGPL code into private HQ core."
+  continuous_improvement:
+    status: foundation
+    owner: president-advisor
+    agent: Horizon
+  quality_gates:
+    status: foundation
+    owner: reviewer
+  market_intelligence:
+    status: planned
+    owner: market-research
+    financial_execution: prohibited_without_separate_explicit_authorization
