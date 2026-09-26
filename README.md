@@ -9,6 +9,14 @@ Headquarters for multi-domain intelligent systems and ventures.
 | **Elevate Edge (app)** | [`elevate-edge/`](elevate-edge/) | **Runnable** career web MVP — CV builder, roles, interview, packages |
 | **Intelligent Agency** | [`intelligent-agency/`](intelligent-agency/) | Hierarchical multi-domain AI agent system |
 | **Elevate Edge (plan)** | [`docs/elevate-edge/`](docs/elevate-edge/) | Business plan, 90-day steps, Pocket HR + Nepal boards |
+| **Mind & Mythos** | external: [mind-mythos](https://github.com/bimald986-cell/mind-mythos) | Audio-first content brand; registered in HQ project registry |
+
+## Project registry
+
+Known external/internal projects for Horizon and the dashboard:
+
+- [`core/projects.yaml`](core/projects.yaml)
+- Mind & Mythos runbook: [`docs/MIND_MYTHOS_INTEGRATION.md`](docs/MIND_MYTHOS_INTEGRATION.md)
 
 ## Quick start — Elevate Edge app (see something working)
 
