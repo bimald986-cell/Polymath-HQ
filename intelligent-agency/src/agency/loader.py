@@ -1,13 +1,10 @@
-"""Build the whole hierarchy from a YAML config file.
-
-The config is the single place you edit to add a new field (director) or a
-new specialist (agent) -- no code changes required.
-"""
+"""Build the whole HQ hierarchy from YAML plus the President Advisor."""
 from __future__ import annotations
 
 import os
 from typing import Any, Dict
 
+from .advisor import PresidentAdvisor
 from .agent import Agent
 from .director import Director
 from .president import President
@@ -25,12 +22,21 @@ def load_config(path: str = _DEFAULT_CONFIG) -> Dict[str, Any]:
 
 
 def build_agency(path: str = _DEFAULT_CONFIG) -> President:
-    """Construct a fully wired President from the config file."""
+    """Construct a fully wired President, Horizon advisor, directors and agents."""
     cfg = load_config(path)
     pres_cfg = cfg.get("president", {})
+    advisor_cfg = cfg.get("president_advisor", {})
+    advisor = PresidentAdvisor(
+        name=advisor_cfg.get("name", "Horizon"),
+        description=advisor_cfg.get(
+            "description",
+            "President Advisor for horizon scanning and continuous improvement.",
+        ),
+    )
     president = President(
         name=pres_cfg.get("name", "President"),
         description=pres_cfg.get("description", "Oversees all directors."),
+        advisor=advisor,
     )
 
     for d in cfg.get("directors", []):
