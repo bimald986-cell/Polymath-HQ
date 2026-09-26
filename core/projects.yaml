@@ -1,0 +1,12 @@
+# Registered projects known to Polymath HQ / Horizon.
+# Horizon may inspect these repos and open President-Brief PRs on horizon/* branches.
+# Merge to default_branch remains a human President decision.
+
+projects:
+  mind-mythos:
+    name: Mind & Mythos
+    aliases: [M&M, Mind and Mythos, mm]
+    github: bimald986-cell/mind-mythos
+    default_branch: main
+    type: content-brand
+    notes: Audio-first short-form philosophy / mind brand. Owner-approval publish only.
