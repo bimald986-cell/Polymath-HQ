@@ -96,19 +96,22 @@ class PresidentAdvisor(Node):
     def can(self, action: str, *,
             president_authorized: bool = False,
             target: Optional[str] = None) -> bool:
-        """Authority flag AND PolicyEngine must both allow the action."""
-        if not bool(self.permissions().get(action, False)):
-            return False
+        """Authority flag AND PolicyEngine must both allow the action.
+
+        Policy is always consulted when a tool mapping exists so denials are audited,
+        even when Authority already forbids the action (e.g. merge).
+        """
+        auth_ok = bool(self.permissions().get(action, False))
         tool = _ACTION_TO_TOOL.get(action)
         if tool is None:
-            return True
+            return auth_ok
         decision = self.policy.check(
             tool,
             president_authorized=president_authorized,
             target=target,
             actor=self.name,
         )
-        return decision.allowed
+        return auth_ok and decision.allowed
 
     def require_action(self, action: str, *,
                        president_authorized: bool = False,
