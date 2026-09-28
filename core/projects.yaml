@@ -11,6 +11,27 @@ projects:
     type: content-brand
     notes: Audio-first short-form philosophy / mind brand. Owner-approval publish only.
 
+  astrolab-v6:
+    name: AstroLab V6
+    aliases: [AstroLab, astrolab, al]
+    github: bimald986-cell/astrolab-v6
+    default_branch: main
+    product_branch: release/public-beta
+    type: product
+    notes: >
+      Vedic astrology platform (Swiss Ephemeris, Lahiri, True Node, whole-sign).
+      Design direction Sacred Studio on public-beta. CI on PRs; never invent chart facts.
+
+  ratebridge:
+    name: RateBridge
+    aliases: [RB, remittance]
+    github: bimald986-cell/RateBridge
+    default_branch: main
+    type: product
+    notes: >
+      GCC→Asia remittance cost transparency PWA. Rank providers only when verified:true.
+      Preferred first corridor Kuwait→Nepal.
+
   # --- Study / capability forks (2026-09-28) ---
   automaton:
     name: Conway Automaton (fork)
