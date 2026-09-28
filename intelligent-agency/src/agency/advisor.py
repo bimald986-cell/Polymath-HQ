@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 
 from .base import Node, Role
 from .llm import LLMBackend, get_backend
+from .policy import PolicyEngine, default_engine
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,25 @@ class Authority:
     change_credentials_or_security_policy: bool = False
 
 
+# Map Authority fields / action names onto PolicyEngine tool ids.
+_ACTION_TO_TOOL = {
+    "merge_pull_request": "merge_pull_request",
+    "push_directly_to_protected_branch": "push_to_protected_branch",
+    "deploy_production": "delete_production_data",  # treated as irreversible
+    "financial_execution": "spend_funds",
+    "change_credentials_or_security_policy": "execute_shell",
+    "open_pull_request": "github_review_changeset",
+    "update_pull_request": "github_review_changeset",
+    "create_branch": "github_review_changeset",
+    "create_files": "github_review_changeset",
+    "modify_files": "github_review_changeset",
+    "delete_files_on_work_branch": "github_review_changeset",
+    "inspect": "local_file_read",
+    "research": "http_get_allowlisted",
+    "run_tests": "local_file_read",
+}
+
+
 class PresidentAdvisor(Node):
     """Direct advisor to the President with implementation authority on branches."""
 
@@ -40,6 +60,7 @@ class PresidentAdvisor(Node):
         description: str = "President Advisor for horizon scanning and continuous improvement.",
         backend: Optional[LLMBackend] = None,
         authority: Optional[Authority] = None,
+        policy: Optional[PolicyEngine] = None,
     ):
         prompt = (
             f"You are {name}, President Advisor of Polymath HQ. "
@@ -58,6 +79,7 @@ class PresidentAdvisor(Node):
         )
         self._backend = backend
         self.authority = authority or Authority()
+        self.policy = policy or default_engine()
 
     @property
     def backend(self) -> LLMBackend:
@@ -71,8 +93,38 @@ class PresidentAdvisor(Node):
     def permissions(self) -> Dict[str, bool]:
         return dict(self.authority.__dict__)
 
-    def can(self, action: str) -> bool:
-        return bool(self.permissions().get(action, False))
+    def can(self, action: str, *,
+            president_authorized: bool = False,
+            target: Optional[str] = None) -> bool:
+        """Authority flag AND PolicyEngine must both allow the action."""
+        if not bool(self.permissions().get(action, False)):
+            return False
+        tool = _ACTION_TO_TOOL.get(action)
+        if tool is None:
+            return True
+        decision = self.policy.check(
+            tool,
+            president_authorized=president_authorized,
+            target=target,
+            actor=self.name,
+        )
+        return decision.allowed
+
+    def require_action(self, action: str, *,
+                       president_authorized: bool = False,
+                       target: Optional[str] = None) -> None:
+        """Raise PermissionError if Authority or PolicyEngine denies."""
+        if not bool(self.permissions().get(action, False)):
+            raise PermissionError(f"Authority denied: {action}")
+        tool = _ACTION_TO_TOOL.get(action)
+        if tool is None:
+            return
+        self.policy.require(
+            tool,
+            president_authorized=president_authorized,
+            target=target,
+            actor=self.name,
+        )
 
     def president_brief(
         self,
