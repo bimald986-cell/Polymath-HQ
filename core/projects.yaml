@@ -10,3 +10,56 @@ projects:
     default_branch: main
     type: content-brand
     notes: Audio-first short-form philosophy / mind brand. Owner-approval publish only.
+
+  # --- Study / capability forks (2026-09-28) ---
+  automaton:
+    name: Conway Automaton (fork)
+    aliases: [automaton, conway-automaton]
+    github: bimald986-cell/automaton
+    upstream: Conway-Research/automaton
+    default_branch: main
+    type: study-fork
+    license: MIT
+    notes: >
+      Sovereign agent runtime patterns (loop, policy engine, heartbeat, treasury limits,
+      constitution). Study and reimplement ideas in HQ; do not couple production HQ to
+      Conway Cloud / USDC survival model without explicit President approval.
+
+  deepseek-harness:
+    name: DeepSeek Harness (fork)
+    aliases: [dsh, deepseek-harness, harness]
+    github: bimald986-cell/deepseek-harness
+    upstream: deepseek-ai/deepseek-harness
+    default_branch: master
+    type: study-fork
+    license: MIT
+    notes: >
+      Developer-preview plugin harness (Cordis). Everything-is-a-plugin architecture.
+      Experimental only — run in disposable VM/container. See SAFETY.md in the fork.
+
+  emilkowalski-skills:
+    name: Emil Kowalski Design Skills (fork)
+    aliases: [design-skills, emil-skills, ui-skills]
+    github: bimald986-cell/emilkowalski_skills
+    upstream: attentiondotnet/emilkowalski_skills
+    preferred_upstream: emilkowalski/skills
+    default_branch: main
+    type: skills-library
+    license: MIT
+    notes: >
+      Design-engineering and animation skills for agents (emil-design-eng, review-animations,
+      animation-vocabulary, apple-design). Use for Elevate Edge UI and any HQ dashboards.
+      Prefer full upstream emilkowalski/skills when installing via npx skills.
+
+  public-apis:
+    name: Public APIs catalog (fork)
+    aliases: [public-apis, api-catalog]
+    github: bimald986-cell/public-apis
+    upstream: public-apis/public-apis
+    default_branch: master
+    type: reference-catalog
+    license: MIT
+    notes: >
+      Curated list of public HTTP APIs. Not executable software. Use as a source for
+      tool ideas (finance, weather, geocoding, etc.). Prefer a slim HQ-curated subset
+      over rehosting the full ad-heavy README.
