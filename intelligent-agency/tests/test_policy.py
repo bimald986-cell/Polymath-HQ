@@ -1,4 +1,9 @@
 """Tests for the policy skeleton."""
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
+
 from agency.policy import PolicyEngine, ToolRisk, default_engine
 
 
