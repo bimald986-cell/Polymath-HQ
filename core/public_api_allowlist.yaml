@@ -1,0 +1,57 @@
+# HQ-curated public API allowlist
+# Never call endpoints that are not listed here from production code paths.
+# Source of ideas: bimald986-cell/public-apis (study fork). Review before promoting.
+
+version: 1
+updated: "2026-09-28"
+rules:
+  - Prefer free tiers with clear Terms of Service
+  - Document auth, rate limits, and attribution before enabling
+  - President/owner approval required for any paid API key in production
+  - Keep RateBridge usable when upstream FX fetch fails (cached/offline path)
+
+endpoints:
+  # Mid-market FX research candidates (not auto-wired into RateBridge PWA)
+  - id: exchangerate_host
+    name: ExchangeRate.host
+    base_url: "https://api.exchangerate.host"
+    category: currency
+    auth: none
+    rate_limit: generous free tier; verify current limits before production
+    use_for: [ratebridge_research]
+    status: candidate
+    notes: "Research only until RateBridge data pipeline explicitly adopts it."
+
+  - id: frankfurter
+    name: Frankfurter
+    base_url: "https://api.frankfurter.app"
+    category: currency
+    auth: none
+    rate_limit: public, no key
+    use_for: [ratebridge_research]
+    status: candidate
+    notes: "ECB-based mid-market rates; good offline-friendly research source."
+
+  - id: open_meteo
+    name: Open-Meteo
+    base_url: "https://api.open-meteo.com"
+    category: weather
+    auth: none
+    rate_limit: free non-commercial
+    use_for: [research]
+    status: candidate
+    notes: "Not required for core HQ; listed for future research tools."
+
+  - id: nominatim
+    name: Nominatim (OpenStreetMap)
+    base_url: "https://nominatim.openstreetmap.org"
+    category: geocoding
+    auth: none
+    rate_limit: "1 req/sec; User-Agent required"
+    use_for: [astrolab_geocoding_reference]
+    status: reference
+    notes: "AstroLab already uses a configured geocoding path; this is catalog reference only."
+
+disabled_by_default:
+  - Any endpoint not listed above
+  - Endpoints requiring paid keys until President approves secrets handling

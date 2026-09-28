@@ -24,6 +24,7 @@ npx skills@latest add emilkowalski/skills
 - `elevate-edge/` career web MVP
 - `intelligent-agency` dashboard / webapp
 - `mind-mythos` dashboard (subtle motion only; brand is audio-first)
+- **`astrolab-v6`** private web UI (`static/`, `templates/`) — tab transitions, form focus, report cards
 
 ### Rules of thumb (from the skills — summary)
 
@@ -32,3 +33,4 @@ npx skills@latest add emilkowalski/skills
 - Do **not** animate actions users trigger hundreds of times/day
 - Never start from `scale(0)`; use ~`0.95` + opacity
 - Review with a Before / After / Why table when auditing code
+- AstroLab is reading-first: motion should feel calm and restrained (paper/forest palette), not playful
