@@ -11,12 +11,26 @@ Headquarters for multi-domain intelligent systems and ventures.
 | **Elevate Edge (plan)** | [`docs/elevate-edge/`](docs/elevate-edge/) | Business plan, 90-day steps, Pocket HR + Nepal boards |
 | **Mind & Mythos** | external: [mind-mythos](https://github.com/bimald986-cell/mind-mythos) | Audio-first content brand; registered in HQ project registry |
 
+## Capability study forks
+
+Registered under this account for Horizon scanning (see [`docs/EXTERNAL_FORKS_INTEGRATION.md`](docs/EXTERNAL_FORKS_INTEGRATION.md)):
+
+| Fork | Role |
+|------|------|
+| [automaton](https://github.com/bimald986-cell/automaton) | Agent loop, policy, heartbeat patterns (study) |
+| [deepseek-harness](https://github.com/bimald986-cell/deepseek-harness) | Plugin harness (experimental) |
+| [emilkowalski_skills](https://github.com/bimald986-cell/emilkowalski_skills) | Design / animation skills (adopt for UI) |
+| [public-apis](https://github.com/bimald986-cell/public-apis) | Public API catalog (reference only) |
+
 ## Project registry
 
 Known external/internal projects for Horizon and the dashboard:
 
 - [`core/projects.yaml`](core/projects.yaml)
+- Capability status: [`core/capability_registry.yaml`](core/capability_registry.yaml)
 - Mind & Mythos runbook: [`docs/MIND_MYTHOS_INTEGRATION.md`](docs/MIND_MYTHOS_INTEGRATION.md)
+- External forks guide: [`docs/EXTERNAL_FORKS_INTEGRATION.md`](docs/EXTERNAL_FORKS_INTEGRATION.md)
+- Skills: [`docs/skills/README.md`](docs/skills/README.md)
 
 ## Quick start — Elevate Edge app (see something working)
 

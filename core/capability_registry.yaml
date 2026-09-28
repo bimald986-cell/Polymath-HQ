@@ -1,52 +1,101 @@
-version: 1
+version: 2
 capabilities:
   orchestration:
     status: foundation
     owner: director
-    inspirations: [the-agency]
+    inspirations: [the-agency, deepseek-harness, automaton]
+    notes: "Plugin composition ideas from DSH; hierarchical routing already in intelligent-agency."
+
+  agent_runtime_loop:
+    status: planned
+    owner: director
+    inspirations: [automaton, deepseek-harness]
+    notes: >
+      Think-Act-Observe loop, heartbeat/scheduled tasks, idle detection.
+      Reimplement patterns; do not require Conway infra.
+
+  policy_and_safety:
+    status: planned
+    owner: reviewer
+    inspirations: [automaton]
+    notes: >
+      Multi-layer policy on tool calls, injection defense, authority hierarchy,
+      path protection. Align with Horizon merge-boundary rules.
+
+  financial_guards:
+    status: planned
+    owner: director
+    inspirations: [automaton]
+    financial_execution: prohibited_without_separate_explicit_authorization
+    notes: "Spend trackers and hard caps as patterns only; HQ does not auto-trade."
+
   persistent_handoffs:
     status: planned
     owner: director
     inspirations: [the-agency]
+
   layered_memory:
     status: planned
     owner: memory-curator
-    inspirations: [tencentdb-agent-memory, memoryhub]
+    inspirations: [tencentdb-agent-memory, memoryhub, automaton]
+
   skill_library:
-    status: planned
+    status: foundation
     owner: memory-curator
-    inspirations: [tencentdb-agent-memory]
+    inspirations: [emilkowalski-skills, tencentdb-agent-memory, automaton]
+    notes: "Design skills fork registered; install path docs/skills/."
+
+  ui_design_craft:
+    status: planned
+    owner: builder
+    inspirations: [emilkowalski-skills]
+    notes: "Animation decision framework, review tables, ease-out defaults for Elevate Edge."
+
   wiki_knowledge:
     status: planned
     owner: knowledge-curator
     inspirations: [tencentdb-agent-memory]
+
   code_graph:
     status: planned
     owner: code-intelligence
     inspirations: [tencentdb-agent-memory]
+
   browser_operation:
     status: adapter-planned
     owner: browser-operator
     inspirations: [browser-use]
     approval_required_for_external_side_effects: true
+
+  public_api_tools:
+    status: planned
+    owner: researcher
+    inspirations: [public-apis]
+    notes: "Curate a small allowlisted tool set from the catalog; never call unreviewed endpoints."
+
   software_delivery:
     status: existing-partial
     owner: builder
+
   research:
     status: existing-partial
     owner: researcher
+
   media_production:
     status: architecture-planned
     owner: media-producer
     inspirations: [openmontage]
     implementation_note: "Reimplement architecture independently; do not copy AGPL code into private HQ core."
+
   continuous_improvement:
     status: foundation
     owner: president-advisor
     agent: Horizon
+
   quality_gates:
     status: foundation
     owner: reviewer
+
   market_intelligence:
     status: planned
     owner: market-research
