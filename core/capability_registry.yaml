@@ -15,12 +15,13 @@ capabilities:
       Reimplement patterns; do not require Conway infra.
 
   policy_and_safety:
-    status: planned
+    status: foundation
     owner: reviewer
     inspirations: [automaton]
     notes: >
-      Multi-layer policy on tool calls, injection defense, authority hierarchy,
-      path protection. Align with Horizon merge-boundary rules.
+      PolicyEngine in intelligent-agency/src/agency/policy.py: tool risk levels,
+      irreversible block without President flag, optional network allowlist, audit log.
+      Align with Horizon merge-boundary rules.
 
   financial_guards:
     status: planned
@@ -43,13 +44,15 @@ capabilities:
     status: foundation
     owner: memory-curator
     inspirations: [emilkowalski-skills, tencentdb-agent-memory, automaton]
-    notes: "Design skills fork registered; install path docs/skills/."
+    notes: "Design skills fork registered; apply to Elevate Edge, HQ dashboard, AstroLab UI."
 
   ui_design_craft:
-    status: planned
+    status: foundation
     owner: builder
     inspirations: [emilkowalski-skills]
-    notes: "Animation decision framework, review tables, ease-out defaults for Elevate Edge."
+    notes: >
+      Animation decision framework for Elevate Edge, intelligent-agency dashboard,
+      and astrolab-v6 (calm, reading-first motion).
 
   wiki_knowledge:
     status: planned
@@ -68,10 +71,10 @@ capabilities:
     approval_required_for_external_side_effects: true
 
   public_api_tools:
-    status: planned
+    status: foundation
     owner: researcher
     inspirations: [public-apis]
-    notes: "Curate a small allowlisted tool set from the catalog; never call unreviewed endpoints."
+    notes: "core/public_api_allowlist.yaml — curated candidates only; never call unreviewed endpoints."
 
   software_delivery:
     status: existing-partial
