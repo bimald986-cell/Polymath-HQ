@@ -9,6 +9,7 @@ from .loader import build_agency, load_config
 from .llm import get_backend, LLMBackend, MockBackend, OpenAICompatibleBackend
 from .runtime import HorizonRuntime, RuntimeEvent
 from .policy import PolicyEngine, ToolRisk, PolicyDecision, default_engine
+from .agent_loop import run_agent_loop, LoopResult, LoopStep
 
 __all__ = [
     "Role", "Node", "Agent", "Authority", "PresidentAdvisor", "Director", "President",
@@ -16,5 +17,6 @@ __all__ = [
     "get_backend", "LLMBackend", "MockBackend", "OpenAICompatibleBackend",
     "HorizonRuntime", "RuntimeEvent",
     "PolicyEngine", "ToolRisk", "PolicyDecision", "default_engine",
+    "run_agent_loop", "LoopResult", "LoopStep",
 ]
-__version__ = "0.4.0"
+__version__ = "0.5.0"
