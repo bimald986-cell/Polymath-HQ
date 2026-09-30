@@ -9,7 +9,9 @@ projects:
     github: bimald986-cell/mind-mythos
     default_branch: main
     type: content-brand
-    notes: Audio-first short-form philosophy / mind brand. Owner-approval publish only.
+    portfolio_tier: active
+    current_priority: production-002
+    notes: Audio-first short-form philosophy / mind brand. Owner-approval publish only. Next production is Why Time Feels Slow.
 
   astrolab-v6:
     name: AstroLab V6
@@ -18,9 +20,49 @@ projects:
     default_branch: main
     product_branch: release/public-beta
     type: product
+    portfolio_tier: active
+    current_priority: reliability-and-trust
     notes: >
       Vedic astrology platform (Swiss Ephemeris, Lahiri, True Node, whole-sign).
-      Design direction Sacred Studio on public-beta. CI on PRs; never invent chart facts.
+      Deterministic engine remains canonical. Prioritize P0/P1 privacy/security,
+      Advisor canonical transit evidence, and prediction uniqueness/evidence QA.
+
+  sajilo:
+    name: Sajilo
+    aliases: [Sajilo, retail-platform, retail]
+    github: bimald986-cell/retail-platform
+    default_branch: main
+    type: product
+    portfolio_tier: active
+    current_priority: first-executable-vertical-slice
+    notes: >
+      Nepal-first modular retail/POS platform. Build the first executable flow across
+      business, product, stock, sale, payment, customer/baki and dashboard while
+      preserving domain separation, auditability, tenant isolation and Nepal compliance.
+
+  wonder-to-wisdom:
+    name: Wonder to Wisdom
+    aliases: [W2W, wonder, curriculum]
+    github: bimald986-cell/wonder-to-wisdom
+    default_branch: main
+    product_branch: sprint1-book-publishing-execution
+    type: education-publishing
+    portfolio_tier: active
+    current_priority: book-02-owner-review-gate
+    notes: >
+      National daily curriculum and derivative publishing system. Finish Book 02's
+      illustration correction gate before opening additional book/video production.
+      Preserve Shyla/Vyas character standard and owner approval before release.
+
+  ai-learning:
+    name: AI Learning Journey
+    aliases: [90-Days-of-AI, learning, AI learning]
+    github: bimald986-cell/90-Days-of-AI
+    default_branch: main
+    type: learning
+    portfolio_tier: protected-routine
+    current_priority: day-10
+    notes: Daily learning progression. Protect continuity; do not let product work consume the learning slot.
 
   ratebridge:
     name: RateBridge
@@ -28,11 +70,23 @@ projects:
     github: bimald986-cell/RateBridge
     default_branch: main
     type: product
+    portfolio_tier: maintain
+    current_priority: monitor-live-rate-pipeline
     notes: >
       GCC→Asia remittance cost transparency PWA. Rank providers only when verified:true.
-      Preferred first corridor Kuwait→Nepal.
+      Preferred first corridor Kuwait→Nepal. Maintain automated rate pipeline unless a failure or product gate needs intervention.
 
-  # --- Study / capability forks (2026-09-28) ---
+  open-educators:
+    name: Open Educators
+    aliases: [teacher repo, educators]
+    github: bimald986-cell/open-educators
+    default_branch: main
+    type: education
+    portfolio_tier: maintain
+    current_priority: align-with-wonder-to-wisdom-when-needed
+    notes: Keep aligned with education architecture; avoid duplicating canonical Wonder to Wisdom content.
+
+  # --- Study / capability repos ---
   automaton:
     name: Conway Automaton (fork)
     aliases: [automaton, conway-automaton]
@@ -40,11 +94,12 @@ projects:
     upstream: Conway-Research/automaton
     default_branch: main
     type: study-fork
+    portfolio_tier: capability
     license: MIT
     notes: >
       Sovereign agent runtime patterns (loop, policy engine, heartbeat, treasury limits,
-      constitution). Study and reimplement ideas in HQ; do not couple production HQ to
-      Conway Cloud / USDC survival model without explicit President approval.
+      constitution). Study and reimplement useful ideas in HQ; do not couple production HQ
+      to Conway Cloud / USDC survival model without explicit owner approval.
 
   deepseek-harness:
     name: DeepSeek Harness (fork)
@@ -53,10 +108,9 @@ projects:
     upstream: deepseek-ai/deepseek-harness
     default_branch: master
     type: study-fork
+    portfolio_tier: capability
     license: MIT
-    notes: >
-      Developer-preview plugin harness (Cordis). Everything-is-a-plugin architecture.
-      Experimental only — run in disposable VM/container. See SAFETY.md in the fork.
+    notes: Developer-preview plugin harness. Experimental only; isolate before testing.
 
   emilkowalski-skills:
     name: Emil Kowalski Design Skills (fork)
@@ -66,11 +120,9 @@ projects:
     preferred_upstream: emilkowalski/skills
     default_branch: main
     type: skills-library
+    portfolio_tier: capability
     license: MIT
-    notes: >
-      Design-engineering and animation skills for agents (emil-design-eng, review-animations,
-      animation-vocabulary, apple-design). Use for Elevate Edge UI and any HQ dashboards.
-      Prefer full upstream emilkowalski/skills when installing via npx skills.
+    notes: Design-engineering and animation reference skills for HQ and product dashboards.
 
   public-apis:
     name: Public APIs catalog (fork)
@@ -79,8 +131,11 @@ projects:
     upstream: public-apis/public-apis
     default_branch: master
     type: reference-catalog
+    portfolio_tier: capability
     license: MIT
-    notes: >
-      Curated list of public HTTP APIs. Not executable software. Use as a source for
-      tool ideas (finance, weather, geocoding, etc.). Prefer a slim HQ-curated subset
-      over rehosting the full ad-heavy README.
+    notes: Curated public API reference. Validate each external API independently before product use.
+
+# Portfolio operating rule:
+# Active projects compete for attention by blocker/value/risk, not by novelty.
+# Capability repositories support active products; they do not become priorities merely because they are interesting.
+# Horizon may recommend and prepare work, but consequential merges, releases, spending and public publishing remain owner-controlled.
