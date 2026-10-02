@@ -3,6 +3,7 @@
 
 Status: Research-backed master blueprint and book production specification
 Created: 2026-10-02
+Updated: 2026-10-02 (practical inclusions + education kit link)
 Purpose: Develop a rigorous, humane, globally relevant book about the transition from earlier human eras into the AI and machine age.
 
 ## Editorial promise
@@ -47,6 +48,8 @@ The decisive question of the coming era is therefore not simply what machines ca
 17. AGI: definitions, disagreements and measurement
 18. Superintelligence: concept, uncertainty and implications
 19. The Machine Economy: when software can act, transact and coordinate
+
+**Enhancement note**: Expand multi-agent and hierarchical agency treatment (President → Directors → specialists, policy engines, provenance, permission boundaries). Treat Polymath-HQ / Intelligent Agency as a living case study of human-in-command agent organizations.
 
 ## Part III — The Transformation of Work
 
@@ -93,6 +96,8 @@ The decisive question of the coming era is therefore not simply what machines ca
 
 This is a scenario, not a prediction that teachers or schools disappear.
 
+**Practical companion**: A living *School Redesign Starter Kit (2026–2030)* is under active development at `library/education/school-redesign-starter-kit-2026-2030/`. It is designed so a principal can actually pilot the first phases. Core conviction: the industrial labor-preparation model is outdated; schools should form whole human beings (agency, judgment, character, relationships, capacity to think with and without machines) rather than primarily produce workers.
+
 ## Part V — Everyday Human Life
 
 47. The personal AI: assistant, tutor, researcher and organizer
@@ -126,6 +131,8 @@ This is a scenario, not a prediction that teachers or schools disappear.
 72. Local production and resilient communities
 73. The geopolitics of AI infrastructure
 
+**Enhancement notes**: Elevate energy, materials, water and physical constraints as first-class limits. Strengthen Global South / equity pathways and “abundance without dependency.” Clarify interoperability rights and open-weight counterweights to concentration. Sharpen the economic case for the human-presence premium in care and relationship work.
+
 ## Part VII — Governance and Human Authority
 
 74. What decisions should never be casually delegated
@@ -142,6 +149,8 @@ This is a scenario, not a prediction that teachers or schools disappear.
 85. International coordination and competition
 86. The problem of systems more capable than their supervisors
 87. Alignment, control and uncertainty
+
+**Enhancement note**: Deepen synthetic-media / epistemic-security treatment (evidence standards, content credentials, legal chain-of-custody).
 
 ## Part VIII — Four Futures
 
@@ -227,22 +236,26 @@ Every forecast chapter must carry one of these labels:
 
 No manuscript draft may silently convert SCENARIO or SPECULATIVE material into fact.
 
+Make Appendix O (“What would prove us wrong?”) a living confidence dashboard with explicit falsifiers and signposts.
+
 ## Production roadmap
 
 1. Research dossier and bibliography.
 2. Historical manuscript.
-3. Technical AI/SI/machine primer.
+3. Technical AI/SI/machine primer (include multi-agent hierarchical case study).
 4. Work and economy manuscript.
-5. Education transformation manuscript.
+5. Education transformation manuscript + link to practical School Redesign Starter Kit.
 6. Daily-life and social transformation manuscript.
-7. Power/governance/safety manuscript.
+7. Power/governance/safety manuscript (strengthen epistemic security).
 8. Scenario and timeline atlas.
 9. Human blueprint and closing philosophy.
 10. Fact-check every quantitative claim against primary/authoritative sources.
-11. Expert-style adversarial review: economist, educator, technologist, labor researcher, safety researcher, ethicist, historian and developing-world lens.
+11. Expert-style adversarial review: economist, educator, technologist, labor researcher, safety researcher, ethicist, historian, multi-agent systems practitioner, and developing-world lens.
 12. Copyright/originality audit.
 13. Developmental edit, copyedit and source notes.
 14. Publication layout and accessible edition.
+
+See also: `library/humanity-machine-age/SUGGESTED_INCLUSIONS.md` and `library/education/school-redesign-starter-kit-2026-2030/`.
 
 ## Commercial publication rule
 
