@@ -32,7 +32,17 @@ projects:
       GCC→Asia remittance cost transparency PWA. Rank providers only when verified:true.
       Preferred first corridor Kuwait→Nepal.
 
-  # --- Study / capability forks (2026-09-28) ---
+  ai-income-path-30day:
+    name: AI Income Path 30-Day
+    aliases: [30day, income-path, skill-pack]
+    github: bimald986-cell/ai-income-path-30day
+    default_branch: main
+    type: product
+    notes: >
+      Zero-budget 30-day plan to launch and sell the first specialized AI agent skill pack.
+      Linked strategic backlog: post-book problem-solving skills (see docs/INCOME_STREAM_POST_BOOK_SKILLS.md).
+
+  # --- Study / capability forks (2026-09-28 + 2026-10-02 video intake) ---
   automaton:
     name: Conway Automaton (fork)
     aliases: [automaton, conway-automaton]
@@ -84,3 +94,55 @@ projects:
       Curated list of public HTTP APIs. Not executable software. Use as a source for
       tool ideas (finance, weather, geocoding, etc.). Prefer a slim HQ-curated subset
       over rehosting the full ad-heavy README.
+
+  browserskill:
+    name: BrowserSkill (fork)
+    aliases: [bsk, browser-skill]
+    github: bimald986-cell/BrowserSkill
+    upstream: Tencent/BrowserSkill
+    default_branch: main
+    type: study-fork
+    license: MIT
+    notes: >
+      Let AI agents use the user's real logged-in browser (Chrome/Edge) without interrupting work.
+      CLI + extension. High value for HQ agents that need authenticated web workflows.
+      Study patterns; integrate carefully with policy/permission boundaries.
+
+  agent-skills-addy:
+    name: Addy Osmani Agent Skills (fork)
+    aliases: [addy-skills, agent-skills]
+    github: bimald986-cell/agent-skills
+    upstream: addyosmani/agent-skills
+    default_branch: main
+    type: skills-library
+    license: MIT
+    notes: >
+      Production-grade engineering skills for coding agents (spec, plan, build, test, review,
+      security, webperf, etc.). Primary reference for HQ skill quality and packaging.
+      Use via npx skills or copy selected SKILL.md workflows.
+
+  open-code-review:
+    name: Open Code Review (fork)
+    aliases: [ocr, alibaba-ocr]
+    github: bimald986-cell/open-code-review
+    upstream: alibaba/open-code-review
+    default_branch: main
+    type: study-fork
+    license: Apache-2.0
+    notes: >
+      Battle-tested hybrid code-review CLI (deterministic pipelines + LLM agent, line-level
+      comments). Study for HQ review agents and for packaging lighter review skills into
+      income-path skill packs.
+
+  security-audit-skill:
+    name: Cloudflare Security Audit Skill (fork)
+    aliases: [security-audit, cf-audit]
+    github: bimald986-cell/security-audit-skill
+    upstream: cloudflare/security-audit-skill
+    default_branch: main
+    type: skills-library
+    license: MIT
+    notes: >
+      Multi-phase security audit skill (recon → coverage-led hunting → validation → report).
+      Excellent model for structured, evidence-based agent workflows. Study and adapt for
+      HQ safety policy and for commercial skill packs.
