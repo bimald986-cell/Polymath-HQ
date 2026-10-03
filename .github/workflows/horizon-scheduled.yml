@@ -32,14 +32,16 @@ jobs:
       - name: Run tests before Horizon cycle
         run: pytest -q
 
-      - name: Run one Horizon cycle
+      - name: Run deterministic cloud Horizon cycle
         env:
           HORIZON_STATE_DIR: .horizon
-          # Mock LLM in Actions so the cycle does not depend on external API keys
+          # GitHub-hosted runners cannot reach the owner's local Ollama service.
+          # Cloud cycles therefore validate orchestration and produce an auditable state artifact.
+          # Deep reasoning cycles run through the local Ollama-backed HQ runtime.
           AGENCY_LLM: mock
         run: |
           python - <<'PY'
-          import os, sys
+          import sys
           sys.path.insert(0, 'src')
           from agency import build_agency
           from agency.runtime import HorizonRuntime
@@ -49,8 +51,8 @@ jobs:
           result = runtime.run_once(
               'Run a scheduled HQ improvement scan. Inspect currently available HQ context, '
               'identify the highest-value verified improvement, and produce an auditable '
-              'recommendation. Prefer registered projects in core/projects.yaml when relevant '
-              '(especially mind-mythos). Do not merge or perform consequential external actions.'
+              'recommendation. Prefer registered projects in core/projects.yaml when relevant. '
+              'Do not merge or perform consequential external actions.'
           )
           print(result)
           PY
@@ -61,5 +63,6 @@ jobs:
         with:
           name: horizon-audit-${{ github.run_id }}
           path: intelligent-agency/.horizon/
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 30
