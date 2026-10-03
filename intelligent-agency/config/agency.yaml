@@ -45,14 +45,19 @@ directors:
       - {name: "Menu Planner", description: "Menus, recipes and food service.", keywords: [menu, recipe, food, dish, catering, kitchen]}
       - {name: "Event Coordinator", description: "Plans and runs events.", keywords: [event, wedding, banquet, schedule, venue]}
 
-  - name: "Marketing"
-    description: "Brand, content, SEO, social media and advertising."
-    keywords: [marketing, brand, seo, content, social, ads, campaign, copy, audience, growth, email]
+  - name: "Marketing & PR"
+    description: "Brand building, content, SEO, social media, advertising, public relations, media relations, reputation management and crisis communications."
+    keywords: [marketing, brand, seo, content, social, ads, campaign, copy, audience, growth, email, pr, public-relations, press, media-relations, reputation, crisis, announcement, spokesperson, publicity, influencer]
     agents:
-      - {name: "SEO Specialist", description: "Keywords, ranking and on-page SEO.", keywords: [seo, keyword, ranking, search, backlink, traffic]}
-      - {name: "Content Writer", description: "Blogs, copy and content plans.", keywords: [content, blog, copy, article, writing, newsletter]}
-      - {name: "Social Media Manager", description: "Social posts and community.", keywords: [social, instagram, post, community, engagement, tiktok]}
-      - {name: "Ads Manager", description: "Paid ads and campaign performance.", keywords: [ads, ppc, campaign, budget, conversion, targeting]}
+      - {name: "SEO Specialist", description: "Keywords, ranking, technical and on-page SEO.", keywords: [seo, keyword, ranking, search, backlink, traffic, technical-seo]}
+      - {name: "Content Writer", description: "Blogs, copy, content plans and brand storytelling.", keywords: [content, blog, copy, article, writing, newsletter, storytelling]}
+      - {name: "Social Media Manager", description: "Social posts, community management and engagement.", keywords: [social, instagram, post, community, engagement, tiktok, linkedin]}
+      - {name: "Ads Manager", description: "Paid ads, media buying and campaign performance.", keywords: [ads, ppc, campaign, budget, conversion, targeting, media-buy]}
+      - {name: "PR Strategist", description: "Public relations strategy, messaging frameworks and narrative positioning.", keywords: [pr, public-relations, strategy, messaging, narrative, positioning, announcement]}
+      - {name: "Media Relations Specialist", description: "Press outreach, journalist relationships, interviews and media coverage.", keywords: [media, press, journalist, interview, coverage, pitch, reporter]}
+      - {name: "Crisis Communications Lead", description: "Crisis response, holding statements, reputation defence and recovery plans.", keywords: [crisis, reputation, holding-statement, response, recovery, incident]}
+      - {name: "Brand Reputation Manager", description: "Brand perception monitoring, reputation tracking and trust-building.", keywords: [reputation, brand, perception, trust, monitoring, sentiment]}
+      - {name: "Influencer & Partnership Relations", description: "Influencer outreach, partnerships, sponsorships and ambassador programmes.", keywords: [influencer, partnership, sponsorship, ambassador, collaboration, affiliate]}
 
   - name: "Shares & Trading"
     description: "Stock market, shares, trading strategy and risk. General information only — not investment advice."
