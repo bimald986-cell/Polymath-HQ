@@ -78,12 +78,11 @@ directors:
       - {name: "Investment Advisor", description: "Savings and investment concepts (general info only).", keywords: [investment, savings, retirement, fund, interest]}
 
   - name: "Business"
-    description: "Strategy, operations, HR and general management."
+    description: "Strategy, operations and general management."
     keywords: [business, strategy, operations, management, startup, plan, process]
     agents:
       - {name: "Strategist", description: "Business strategy and models.", keywords: [strategy, model, market, competitive, growth]}
       - {name: "Operations Manager", description: "Processes and efficiency.", keywords: [operations, process, workflow, efficiency, logistics]}
-      - {name: "HR Partner", description: "Hiring, onboarding and people operations.", keywords: [hr, hiring, recruit, onboarding, employee, culture]}
 
   - name: "Product Development"
     description: "Product management, UX and quality assurance."
@@ -154,13 +153,15 @@ directors:
       - {name: "Life Sciences Guide", description: "Biology and related life-science topics.", keywords: [biology, cell, gene, organism, ecology]}
       - {name: "Physical Sciences Guide", description: "Physics and chemistry concepts.", keywords: [physics, chemistry, energy, reaction, matter]}
 
-  - name: "Cybersecurity"
-    description: "Security architecture, threats, privacy and defensive practices."
-    keywords: [security, cyber, hack, malware, phishing, encryption, vulnerability, auth, privacy, firewall]
+  - name: "Security"
+    description: "Cybersecurity, information security, access control, privacy, threat defence and security operations."
+    keywords: [security, cyber, cybersecurity, infosec, hack, malware, phishing, encryption, vulnerability, auth, privacy, firewall, access-control, zero-trust, incident]
     agents:
-      - {name: "Security Architect", description: "Secure design and controls.", keywords: [architecture, control, zero-trust, hardening]}
-      - {name: "Threat Analyst", description: "Threats, malware and incident concepts.", keywords: [threat, malware, phishing, incident, ioc]}
-      - {name: "Privacy Officer", description: "Data protection and privacy.", keywords: [privacy, personal-data, consent, retention]}
+      - {name: "Security Architect", description: "Secure design, zero-trust and controls.", keywords: [architecture, control, zero-trust, hardening]}
+      - {name: "Threat Analyst", description: "Threats, malware, phishing and incident concepts.", keywords: [threat, malware, phishing, incident, ioc]}
+      - {name: "Privacy Officer", description: "Data protection, consent and privacy.", keywords: [privacy, personal-data, consent, retention]}
+      - {name: "Access & Identity Specialist", description: "Identity, authentication, authorisation and access policies.", keywords: [identity, auth, access, iam, sso, rbac]}
+      - {name: "Security Operations Lead", description: "Monitoring, detection, response playbooks and security hygiene.", keywords: [soc, monitoring, detection, response, playbook, hygiene]}
 
   - name: "Data & Analytics"
     description: "Data engineering, analytics, BI and decision support."
@@ -255,6 +256,47 @@ directors:
       - {name: "Technology Transfer Specialist", description: "Adapts findings from one domain to another; commercialisation and IP concepts.", keywords: [transfer, commercialisation, ip, adapt, cross-domain, application]}
       - {name: "Interdisciplinary Synthesizer", description: "Connects insights across fields using systems thinking and analogical transfer.", keywords: [interdisciplinary, synthesize, systems, analogy, cross-field, connect]}
       - {name: "Evaluation & Validation Lead", description: "Rigorous evaluation, reproducibility, evidence standards and failure analysis.", keywords: [evaluation, validation, reproducibility, evidence, failure, quality, peer-review]}
+
+  - name: "Human Resources"
+    description: "People operations — hiring, onboarding, performance, culture, compensation concepts and workforce planning."
+    keywords: [hr, human-resources, hiring, recruit, recruitment, onboarding, employee, culture, performance, compensation, talent, workforce, people]
+    agents:
+      - {name: "Talent Acquisition", description: "Sourcing, interviewing and hiring pipelines.", keywords: [hiring, recruit, recruitment, sourcing, interview, candidate]}
+      - {name: "Onboarding Specialist", description: "New-hire experience, training plans and first-90-days design.", keywords: [onboarding, induction, orientation, first-90-days]}
+      - {name: "People Partner", description: "Employee relations, culture and engagement.", keywords: [people, culture, engagement, employee-relations, retention]}
+      - {name: "Performance & Development Coach", description: "Reviews, goals, feedback and growth plans.", keywords: [performance, review, feedback, goals, development, coaching]}
+      - {name: "Compensation & Benefits Guide", description: "Pay bands, benefits concepts and total rewards (general info).", keywords: [compensation, salary, benefits, rewards, banding]}
+
+  - name: "Infrastructure"
+    description: "Cloud, servers, networking, platforms, reliability, observability and platform engineering."
+    keywords: [infrastructure, cloud, server, networking, platform, reliability, sre, observability, kubernetes, aws, azure, gcp, terraform, capacity]
+    agents:
+      - {name: "Cloud Architect", description: "Cloud design, multi-cloud and landing zones.", keywords: [cloud, aws, azure, gcp, landing-zone, architecture]}
+      - {name: "Platform Engineer", description: "Internal platforms, developer experience and self-service infra.", keywords: [platform, developer-experience, self-service, platform-engineering]}
+      - {name: "Site Reliability Engineer", description: "Reliability, SLOs, incident response and capacity.", keywords: [sre, reliability, slo, incident, capacity, uptime]}
+      - {name: "Network Specialist", description: "Networking, DNS, load balancing and connectivity.", keywords: [network, dns, load-balancer, connectivity, vpn, firewall]}
+      - {name: "Observability Engineer", description: "Logging, metrics, tracing and alerting.", keywords: [observability, logging, metrics, tracing, alerting, monitoring]}
+
+  - name: "Technology"
+    description: "Technology strategy, architecture governance, stack decisions, digital transformation and enterprise tech standards."
+    keywords: [technology, tech, stack, architecture-governance, digital-transformation, enterprise, standards, roadmap, it-strategy]
+    agents:
+      - {name: "Technology Strategist", description: "Tech strategy, roadmaps and investment priorities.", keywords: [strategy, roadmap, investment, priorities, it-strategy]}
+      - {name: "Enterprise Architect", description: "Cross-system architecture, integration and standards.", keywords: [enterprise, architecture, integration, standards, governance]}
+      - {name: "Stack Advisor", description: "Language, framework and tooling selection.", keywords: [stack, framework, language, tooling, selection, evaluation]}
+      - {name: "Digital Transformation Lead", description: "Modernisation programmes and change sequencing.", keywords: [digital, transformation, modernisation, change, legacy]}
+      - {name: "Tech Standards Guardian", description: "Coding standards, security baselines and compliance of tech choices.", keywords: [standards, baseline, compliance, policy, quality]}
+
+  - name: "Skills"
+    description: "Meta department that designs, creates and maintains agents and skills for the whole HQ. Takes requests and suggestions from every department (especially R&D) and produces new capability definitions ready for Atlas to use."
+    keywords: [skills, skill, agent-design, capability, competency, skill-library, agent-catalog, upskill, create-agent, new-agent, skill-pack]
+    agents:
+      - {name: "Skill Architect", description: "Designs skill definitions, competencies and capability models for any domain.", keywords: [skill, competency, capability, model, definition, architecture]}
+      - {name: "Agent Designer", description: "Specifies new agents — name, mission, keywords, system prompts and boundaries.", keywords: [agent, design, specification, prompt, keywords, role]}
+      - {name: "Capability Gap Analyst", description: "Scans other departments and R&D proposals to find missing skills/agents.", keywords: [gap, missing, needs, analysis, request, backlog]}
+      - {name: "Skill Pack Builder", description: "Packages reusable skill packs and agent templates for distribution.", keywords: [pack, template, reusable, library, package, distribution]}
+      - {name: "Skills Librarian", description: "Catalogues, versions and maintains the living skill & agent library.", keywords: [library, catalog, version, maintain, inventory, registry]}
+      - {name: "Cross-Department Liaison", description: "Collects requests from directors and R&D, prioritises and routes skill work.", keywords: [liaison, request, prioritise, coordinate, intake, suggestion]}
 
   - name: "General"
     description: "Catch-all for anything that does not fit another field."
