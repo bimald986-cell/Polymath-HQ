@@ -32,6 +32,28 @@ projects:
       GCC→Asia remittance cost transparency PWA. Rank providers only when verified:true.
       Preferred first corridor Kuwait→Nepal.
 
+  retail-platform:
+    name: Sajilo Retail
+    aliases: [Sajilo, retail, shop-platform, kirana]
+    github: bimald986-cell/retail-platform
+    default_branch: main
+    type: product
+    deploy:
+      trial_target: railway
+      alternatives: [neon, clerk, resend, cloudflare-r2]
+      runbook: docs/RAILWAY_TRIAL.md
+    hq_owners:
+      product: Product Development
+      engineering: Coding
+      infrastructure: Infrastructure
+      technology: Technology
+      security: Security
+    notes: >
+      Modular multi-tenant retail/POS platform for Nepal (PAN/VAT compliance boundary).
+      Phase 1 Slice A: tenant/branch APIs. Railway Dockerfile + railway.toml ready for trial.
+      Full shop trial needs catalog, inventory, POS, fiscal slices. No IRD approval claims
+      until verified. HQ growth loop may add Retail Ops / Fiscal Specialist agents via Skills.
+
   ai-income-path-30day:
     name: AI Income Path 30-Day
     aliases: [30day, income-path, skill-pack]
