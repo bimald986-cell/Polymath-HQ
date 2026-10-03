@@ -4,29 +4,78 @@
 
 schema_version: 1
 
-# status values: proposed | accepted | designing | packaged | pr_open | merged | rejected
-# kind values: agent | skill | director
-# priority: 1 (highest) .. 100 (lowest)
+requests:
+  - id: req-20261003-001
+    status: accepted
+    priority: 20
+    requested_by: Research & Development
+    target_director: Coding
+    proposed_name: Retail Catalog Builder
+    kind: skill
+    rationale: |
+      Slice B catalog APIs delivered in retail-platform 2026-10-03.
+      Documents product/SKU/barcode patterns for reuse.
+    keywords: [retail, catalog, sku, barcode, product]
+    suggested_description: "Builds tenant-scoped product catalog APIs for Sajilo Retail."
+    evidence:
+      - type: rnd_finding
+        detail: "HQ_GAP_ANALYSIS_2026-10-03 — catalog was models-only; now service+API"
+    acceptance_criteria:
+      - "Units, tax categories, products, barcode lookup APIs exist"
+    created_at: "2026-10-03T15:00:00Z"
 
-requests: []
+  - id: req-20261003-002
+    status: proposed
+    priority: 15
+    requested_by: Security
+    target_director: Security
+    proposed_name: Retail Auth Specialist
+    kind: agent
+    rationale: |
+      No authentication on retail APIs; password_hash unused; IDOR risk on tenant UUIDs.
+      Security gate before public Railway trial.
+    keywords: [auth, jwt, password, session, retail, identity]
+    suggested_description: "Designs and reviews auth for multi-tenant retail APIs."
+    evidence:
+      - type: human
+        detail: "Security section of HQ_GAP_ANALYSIS_2026-10-03"
+    acceptance_criteria:
+      - "Login + password hashing design"
+      - "Role enforcement on tenant routes"
+    created_at: "2026-10-03T15:00:00Z"
 
-# Example (commented):
-# requests:
-#   - id: req-20261003-001
-#     status: proposed
-#     priority: 40
-#     requested_by: Research & Development
-#     target_director: Legal
-#     proposed_name: Patent Scout
-#     kind: agent
-#     rationale: |
-#       Repeated IP / prior-art questions route weakly; Legal has IP Advisor
-#       but no dedicated patent landscape agent.
-#     keywords: [patent, prior-art, freedom-to-operate, ip-search]
-#     suggested_description: "Patent landscape, prior-art concepts and FTO basics (general info only)."
-#     evidence:
-#       - type: routing_miss
-#         detail: "Queries containing 'patent search' scored low on Legal agents"
-#     acceptance_criteria:
-#       - "Routable under Legal for patent-related queries"
-#       - "Disclaimer retained: not legal advice"
+  - id: req-20261003-003
+    status: proposed
+    priority: 25
+    requested_by: Research & Development
+    target_director: Coding
+    proposed_name: Inventory Ledger Designer
+    kind: skill
+    rationale: |
+      Phase 1 Slice C required for stock on hand and goods receipt before POS.
+    keywords: [inventory, stock, ledger, receipt, warehouse]
+    suggested_description: "Designs stock movement ledger and goods-receipt flows."
+    evidence:
+      - type: rnd_finding
+        detail: "First complete workflow steps 5–6 not implemented"
+    acceptance_criteria:
+      - "Supplier + receipt + movement models and APIs"
+    created_at: "2026-10-03T15:00:00Z"
+
+  - id: req-20261003-004
+    status: proposed
+    priority: 30
+    requested_by: Research & Development
+    target_director: Coding
+    proposed_name: POS Sale Command
+    kind: skill
+    rationale: |
+      Phase 1 Slice D — idempotent sale, payment, stock deduction.
+    keywords: [pos, sale, cart, payment, idempotency]
+    suggested_description: "Implements POS sale command with inventory deduction."
+    evidence:
+      - type: rnd_finding
+        detail: "First complete workflow steps 7–9 not implemented"
+    acceptance_criteria:
+      - "Sale with idempotency key and stock reduction"
+    created_at: "2026-10-03T15:00:00Z"
