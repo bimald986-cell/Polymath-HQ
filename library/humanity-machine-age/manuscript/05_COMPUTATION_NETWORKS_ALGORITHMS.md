@@ -1,23 +1,44 @@
-# Chapter 5 — Computation, Networks and the Algorithmic World
+# Chapter 5 — The Age of Electricity and Mass Systems
+## When civilization became continuous, connected and organized at scale
 
-Industrial machines amplified physical work. Electronic computers increasingly amplified symbolic work: calculation, storage, retrieval and rule-based processing.
+Steam power had shown that machines could multiply physical effort. Electricity changed something subtler: it made power distributable.
 
-The transistor, integrated circuit and successive generations of computing hardware made computation smaller, cheaper and more widely available. Mainframes served institutions; personal computers moved programmable machines onto desks; software turned general-purpose hardware into tools for writing, accounting, design, communication, entertainment and scientific work.
+Instead of locating every machine beside its own prime mover, electrical systems could generate power centrally and deliver it through networks. The Smithsonian notes that around 1900 electrical lighting and motors changed factories and cities, while centrally generated electricity allowed businesses greater flexibility in where and how they operated. Steam did not disappear overnight. New eras rarely erase old ones instantly. They grow around them until the structure of ordinary life changes.
 
-Networking changed the unit of computation again. A computer no longer had to be primarily an isolated machine. Networks connected machines, institutions and eventually billions of people. The World Wide Web provided a particularly important layer for publishing and navigating linked information. CERN records that Tim Berners-Lee proposed the Web in 1989 while working there, built its foundational technologies around the turn of the decade, and that CERN placed the Web software in the public domain in April 1993, helping enable its broad adoption.
+Electricity became an enabling layer beneath other inventions. Lighting extended productive and social activity beyond daylight. Electric motors allowed factories to reorganize machinery. Telegraphy and telephony separated communication from physical transportation. Radio later allowed one source to reach vast audiences simultaneously.
 
-Search engines helped organize the rapidly expanding digital information environment. Smartphones moved network access, cameras, sensors, navigation and software into a device carried throughout daily life. Cloud computing concentrated vast computational resources in data centers while making them remotely accessible. E-commerce and platforms reorganized markets around digital coordination.
+The world was becoming synchronized.
 
-The next transition was algorithmic. Instead of programmers specifying every rule directly, machine-learning systems could learn statistical patterns from data. Recommendation systems ranked information and products. Computer vision classified images. Speech systems transcribed language. Predictive systems entered finance, advertising, logistics, medicine and many other domains.
+Industrial chemistry produced new materials, medicines and processes. Internal-combustion engines transformed mobility. Automobiles changed cities and settlement. Aviation compressed continental and eventually global travel. Refrigeration altered food systems. Sanitation and modern public-health systems changed survival in expanding urban populations. Mass production drove the price of complex goods downward by standardizing parts, processes and workflows.
 
-By the years immediately preceding the generative-AI boom, society had already built much of the substrate the new systems would need: global networks, enormous digital datasets, specialized chips, cloud infrastructure, software distribution, online identity and billions of connected users.
+The defining technology of this era was therefore not one machine. It was the **large technical system**.
 
-Generative AI therefore did not arrive in an empty world. It arrived on top of decades of accumulated computational infrastructure.
+Electric grids, telephone networks, railways, factories, oil systems, roads, broadcast networks and national bureaucracies depended on standards and coordination. A single device mattered because it belonged to a system capable of serving millions.
+
+Corporations themselves changed. Managing large organizations required accounting, filing, communication, forecasting and layers of administration. Governments developed greater statistical and administrative capacity. Modern society increasingly depended on invisible information work: records, schedules, forms, calculations and procedures.
+
+The human being was now living inside systems too complex for any one participant to understand completely.
+
+This produced remarkable abundance and reach, but it also created new vulnerabilities. Industrial warfare demonstrated that the same systems that mass-produced consumer goods could mass-produce weapons. Fossil-fuel systems generated prosperity while accumulating environmental costs. Mass media could educate and entertain enormous populations while also enabling propaganda. Bureaucracy could provide consistent services while becoming impersonal and rigid.
+
+Again, capability was morally neutral until embedded in institutions and choices.
+
+The two world wars accelerated science, engineering, logistics and computation. Governments faced problems involving ballistics, cryptography, navigation, supply chains and vast quantities of information. Mechanical and electromechanical calculation gave way increasingly to electronic computation.
+
+By the middle of the twentieth century, another threshold was becoming visible.
+
+Industrial machines manipulated matter and energy. Computers would manipulate symbols.
+
+That distinction would eventually become one of the most consequential in human history. A machine built for one physical task is constrained by its mechanism. A general-purpose computer can become many different tools through instructions. The same underlying hardware can calculate a trajectory, process payroll, store a document, simulate a system or play a game.
+
+The machine was beginning to separate capability from fixed physical form.
+
+This was the bridge from industrial civilization to information civilization.
 
 ## Sources and Notes
 
-1. CERN, “The Birth of the Web,” https://home.cern/science/computing/birth-web (accessed 2026-10-03).
-2. CERN, Web timeline, documenting the 1989 proposal, early browser/server work and the 30 April 1993 public-domain release, https://timeline.web.cern.ch/ (accessed 2026-10-03).
-3. Tom Wheeler, *From Gutenberg to Google and on to AI: The History of Our Future*, Brookings Institution Press, updated edition, 2024.
+1. Smithsonian National Museum of American History, “Generating Change,” https://americanhistory.si.edu/explore/exhibitions/american-enterprise/online/corporate-era/generating-change (accessed 2026-10-03).
+2. Smithsonian National Museum of American History, “Power Machinery,” https://americanhistory.si.edu/explore/exhibitions/power-machinery (accessed 2026-10-03).
+3. National Institute of Standards and Technology, “NBS Builds a Computer,” https://www.nist.gov/history/nbsnist-culture-excellence/nbs-builds-computer (accessed 2026-10-03).
 
-**Evidence label:** OBSERVED historical synthesis. Hardware, internet, smartphone, cloud and machine-learning subsections will be expanded with primary technical histories and statistical sources before publication.
+**Evidence label:** OBSERVED historical synthesis. Dates overlap with the industrial era because electrification and mass systems diffused unevenly across regions.
