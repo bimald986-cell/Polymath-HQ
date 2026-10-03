@@ -2,6 +2,7 @@
 # Intelligent Agency org chart.
 # Edit THIS file to add a new field (director) or a new specialist (agent).
 # No code changes are needed -- loader.py reads everything from here.
+# Growth of this file is governed by docs/GROWTH_SYSTEM.md (Skills factory).
 # =====================================================================
 
 president:
@@ -288,8 +289,8 @@ directors:
       - {name: "Tech Standards Guardian", description: "Coding standards, security baselines and compliance of tech choices.", keywords: [standards, baseline, compliance, policy, quality]}
 
   - name: "Skills"
-    description: "Meta department that designs, creates and maintains agents and skills for the whole HQ. Takes requests and suggestions from every department (especially R&D) and produces new capability definitions ready for Atlas to use."
-    keywords: [skills, skill, agent-design, capability, competency, skill-library, agent-catalog, upskill, create-agent, new-agent, skill-pack]
+    description: "Meta department and growth factory for HQ. Designs, creates and maintains agents and skills. Ingests CapabilityRequests from every director, R&D and Horizon; produces YAML-ready specs so the org chart can grow under President review. See docs/GROWTH_SYSTEM.md."
+    keywords: [skills, skill, agent-design, capability, competency, skill-library, agent-catalog, upskill, create-agent, new-agent, skill-pack, growth, capability-request, org-chart, gap]
     agents:
       - {name: "Skill Architect", description: "Designs skill definitions, competencies and capability models for any domain.", keywords: [skill, competency, capability, model, definition, architecture]}
       - {name: "Agent Designer", description: "Specifies new agents — name, mission, keywords, system prompts and boundaries.", keywords: [agent, design, specification, prompt, keywords, role]}
