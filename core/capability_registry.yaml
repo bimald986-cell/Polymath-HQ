@@ -42,9 +42,31 @@ capabilities:
 
   skill_library:
     status: foundation
-    owner: memory-curator
-    inspirations: [emilkowalski-skills, tencentdb-agent-memory, automaton]
-    notes: "Design skills fork registered; apply to Elevate Edge, HQ dashboard, AstroLab UI."
+    owner: skills
+    inspirations: [emilkowalski-skills, tencentdb-agent-memory, automaton, agent-skills-addy]
+    notes: >
+      Design skills fork registered; Skills department owns packaging and catalogue.
+      Apply to Elevate Edge, HQ dashboard, AstroLab UI. Growth loop: docs/GROWTH_SYSTEM.md.
+
+  org_chart_growth:
+    status: foundation
+    owner: skills
+    agent: Skills
+    notes: >
+      Structured CapabilityRequest backlog in core/growth/capability_requests.yaml.
+      Skills designs agents/skills; Horizon implements on branches; President merges.
+      Intake CLI: intelligent-agency/scripts/growth_intake.py
+
+  capability_gap_analysis:
+    status: foundation
+    owner: skills
+    notes: "Capability Gap Analyst + Cross-Department Liaison ingest director/R&D/Horizon signals."
+
+  continuous_improvement:
+    status: foundation
+    owner: president-advisor
+    agent: Horizon
+    notes: "Horizon scans → may enqueue skill_request work items; never merges agency.yaml alone."
 
   ui_design_craft:
     status: foundation
@@ -89,11 +111,6 @@ capabilities:
     owner: media-producer
     inspirations: [openmontage]
     implementation_note: "Reimplement architecture independently; do not copy AGPL code into private HQ core."
-
-  continuous_improvement:
-    status: foundation
-    owner: president-advisor
-    agent: Horizon
 
   quality_gates:
     status: foundation

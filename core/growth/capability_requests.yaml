@@ -1,0 +1,32 @@
+# Capability / agent / skill growth backlog for Polymath HQ.
+# Skills department owns triage. Horizon may implement accepted items on branches.
+# Human President merges org-chart changes. See docs/GROWTH_SYSTEM.md.
+
+schema_version: 1
+
+# status values: proposed | accepted | designing | packaged | pr_open | merged | rejected
+# kind values: agent | skill | director
+# priority: 1 (highest) .. 100 (lowest)
+
+requests: []
+
+# Example (commented):
+# requests:
+#   - id: req-20261003-001
+#     status: proposed
+#     priority: 40
+#     requested_by: Research & Development
+#     target_director: Legal
+#     proposed_name: Patent Scout
+#     kind: agent
+#     rationale: |
+#       Repeated IP / prior-art questions route weakly; Legal has IP Advisor
+#       but no dedicated patent landscape agent.
+#     keywords: [patent, prior-art, freedom-to-operate, ip-search]
+#     suggested_description: "Patent landscape, prior-art concepts and FTO basics (general info only)."
+#     evidence:
+#       - type: routing_miss
+#         detail: "Queries containing 'patent search' scored low on Legal agents"
+#     acceptance_criteria:
+#       - "Routable under Legal for patent-related queries"
+#       - "Disclaimer retained: not legal advice"
