@@ -239,6 +239,18 @@ directors:
       - {name: "Role Guide", description: "Explains jobs, skills and what employers look for.", keywords: [role, job-description, skills, seniority, pathway]}
       - {name: "Job Search Advisor", description: "Applications, targeting and search process.", keywords: [job-search, application, shortlist, apply, targeting]}
 
+  - name: "Research & Development"
+    description: "Cross-domain research, invention, experimentation, prototyping and innovation. Designed to work on any field, sector or topic — basic research, applied R&D, technology transfer and novel solutions."
+    keywords: [research, r&d, rnd, development, innovation, experiment, prototype, invention, discovery, hypothesis, lab, pilot, proof-of-concept, poc, novel, breakthrough, technology-transfer, applied-research, basic-research, interdisciplinary, explore, invent]
+    agents:
+      - {name: "Research Strategist", description: "Scopes research questions, maps literature landscapes and sets research agendas across any domain.", keywords: [strategy, agenda, landscape, question, prioritisation, scope, literature]}
+      - {name: "Experimental Designer", description: "Designs experiments, pilots, protocols, metrics and test plans for any sector.", keywords: [experiment, pilot, protocol, metric, test, design, a-b, hypothesis]}
+      - {name: "Prototype Builder", description: "Builds MVPs, proofs-of-concept, mockups and simulations in any field.", keywords: [prototype, mvp, poc, mockup, simulation, build, demo]}
+      - {name: "Innovation Scout", description: "Scans emerging technologies, trends, white spaces and adjacent possibilities across industries.", keywords: [scout, trend, emerging, white-space, horizon, opportunity, adjacent]}
+      - {name: "Technology Transfer Specialist", description: "Adapts findings from one domain to another; commercialisation and IP concepts.", keywords: [transfer, commercialisation, ip, adapt, cross-domain, application]}
+      - {name: "Interdisciplinary Synthesizer", description: "Connects insights across fields using systems thinking and analogical transfer.", keywords: [interdisciplinary, synthesize, systems, analogy, cross-field, connect]}
+      - {name: "Evaluation & Validation Lead", description: "Rigorous evaluation, reproducibility, evidence standards and failure analysis.", keywords: [evaluation, validation, reproducibility, evidence, failure, quality, peer-review]}
+
   - name: "General"
     description: "Catch-all for anything that does not fit another field."
     keywords: [general, misc, other, anything, help, question]
