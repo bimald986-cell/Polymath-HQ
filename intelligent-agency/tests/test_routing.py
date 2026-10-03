@@ -64,7 +64,7 @@ def test_routes_ai():
 def test_routes_cybersecurity():
     p = _pres()
     d = p.best_director("phishing malware vulnerability encryption")
-    assert d.name == "Cybersecurity"
+    assert d.name == "Security"
 
 
 def test_routes_data_analytics():
@@ -138,4 +138,4 @@ def test_handle_returns_trace():
 def test_find_directors_ranked():
     p = _pres()
     top = p.find_directors("marketing campaign", top_k=3)
-    assert top[0][0].name == "Marketing"
+    assert top[0][0].name == "Marketing & PR"
