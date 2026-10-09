@@ -67,6 +67,40 @@ class OpenAICompatibleBackend:
 
 def get_backend() -> LLMBackend:
     """Build a backend from environment variables (MockBackend by default)."""
+    if os.getenv("AGENCY_LLM", "").lower() == "router":
+        from .model_router import FallbackBackend
+
+        providers = []
+
+        for prefix, name in (
+            ("AGENCY_PRIMARY", "primary"),
+            ("AGENCY_SECONDARY", "secondary"),
+        ):
+            base = os.getenv(f"{prefix}_BASE_URL", "").strip()
+            key = os.getenv(f"{prefix}_API_KEY", "").strip()
+            model = os.getenv(f"{prefix}_MODEL", "").strip()
+
+            if base and key and model:
+                if not base.startswith("https://"):
+                    raise ValueError(
+                        f"{name} provider requires an HTTPS endpoint"
+                    )
+                providers.append((
+                    name,
+                    OpenAICompatibleBackend(base, key, model),
+                ))
+
+        providers.append((
+            "ollama",
+            OpenAICompatibleBackend(
+                "http://127.0.0.1:11434/v1",
+                "ollama",
+                os.getenv("AGENCY_OLLAMA_MODEL", "qwen2.5:3b"),
+            ),
+        ))
+
+        return FallbackBackend(providers)
+
     if os.getenv("AGENCY_LLM", "mock").lower() == "openai":
         base = os.getenv("AGENCY_LLM_BASE_URL", "https://api.openai.com/v1")
         key = os.getenv("AGENCY_LLM_API_KEY", "")
