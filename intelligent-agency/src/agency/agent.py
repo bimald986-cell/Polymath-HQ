@@ -1,10 +1,12 @@
 """An Agent: the worker at the bottom of the hierarchy."""
 from __future__ import annotations
+from pathlib import Path
 
 from typing import List, Optional
 
 from .base import Node, Role
 from .llm import LLMBackend, get_backend
+from .portfolio_context import get_portfolio_context
 
 
 class Agent(Node):
@@ -35,4 +37,18 @@ class Agent(Node):
 
     def handle(self, task: str) -> str:
         """Do the work and return the answer."""
-        return self.backend.complete(self.system_prompt, task)
+        context = get_portfolio_context(task)
+        prompt = self.system_prompt + "\n\n" + context
+        policy_file = (
+            Path(__file__).resolve().parents[2]
+            / "EVIDENCE_VERIFICATION_POLICY.md"
+        )
+
+        if policy_file.is_file():
+            policy = policy_file.read_text(encoding="utf-8-sig")
+            prompt += (
+                "\n\nHQ EVIDENCE VERIFICATION POLICY:\n"
+                + policy
+            )
+
+        return self.backend.complete(prompt, task)
