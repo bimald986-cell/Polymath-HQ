@@ -73,13 +73,21 @@ Inspect mind-mythos. Implement the next highest-value structural or production i
 | Push secrets / workflow security files | No |
 
 ## Honest limit (current)
-Today HQ can **queue** M&M work and **advise** on it. Automatic file push + PR only happens after:
-
-- Horizon worker is running
-- GitHub credentials for `mind-mythos` exist
-- a target-repo path is coded/configured to use `core/projects.yaml`
-
-Chat alone cannot push. The durable queue + Horizon + GitHub adapter can.
+The transport now exists in code and is covered by tests, but nothing runs it yet:
+- **GitHub adapter: built.** `intelligent-agency/src/agency/github_client.py` creates branches,
+  writes files and opens pull requests over `urllib.request`; the token comes from `GITHUB_TOKEN`.
+  It cannot merge (`merge_pull_request` always raises), cannot write to
+  `main`/`master`/`production`/`release`, and refuses `.github/workflows/`, `.git/`, `.env`, secret
+  and credential paths. Missing credentials fail loudly with a non-zero exit.
+- **Worker: runnable.** `python -m agency.horizon_worker_main` (or `run_horizon_worker.py`) consumes
+  the same queue the dashboard writes to, resolved from the same `HORIZON_DB_PATH`.
+  `github_review_changeset` items are published as a review branch + pull request; all other items
+  stay advisory.
+- **Still required before it runs unattended:** a `GITHUB_TOKEN` with write scope, `GITHUB_REPO`, a
+  live LLM provider (`AGENCY_LLM`), and a project-to-repo mapping - `core/projects.yaml` is still read
+  by no runtime code, so a target repository must be passed explicitly.
+- **Merge remains a human decision**, enforced in code: no path on this transport merges.
+Chat alone still cannot push. The durable queue + worker + GitHub adapter now can, when configured.
 
 ## Related docs
 - [HQ Dashboard](HQ_DASHBOARD.md)

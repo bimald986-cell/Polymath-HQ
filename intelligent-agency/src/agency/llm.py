@@ -65,6 +65,27 @@ class OpenAICompatibleBackend:
         return data["choices"][0]["message"]["content"]
 
 
+class LLMConfigError(RuntimeError):
+    """Raised when an unattended cycle is started with no real model configured."""
+
+
+def require_live_backend() -> LLMBackend:
+    """Return a non-mock backend, or fail loudly.
+
+    Unattended cycles must not silently run against :class:`MockBackend`: canned
+    text looks like autonomous operation in a CI log while doing no reasoning.
+    """
+    backend = get_backend()
+    if isinstance(backend, MockBackend):
+        raise LLMConfigError(
+            "No live LLM provider configured (AGENCY_LLM unset or 'mock'), so this cycle "
+            "would emit canned text. Configure AGENCY_LLM=openai with AGENCY_LLM_API_KEY, "
+            "AGENCY_LLM_BASE_URL and AGENCY_LLM_MODEL, or AGENCY_LLM=router with "
+            "AGENCY_PRIMARY_* / AGENCY_SECONDARY_* providers. Refusing to run."
+        )
+    return backend
+
+
 def get_backend() -> LLMBackend:
     """Build a backend from environment variables (MockBackend by default)."""
     if os.getenv("AGENCY_LLM", "").lower() == "router":

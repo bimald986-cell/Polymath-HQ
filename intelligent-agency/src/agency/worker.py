@@ -2,6 +2,15 @@
 
 Uses PolicyEngine before memory writes and work enqueue so local side-effects
 are classified and audited.
+
+Work-item kinds handled here:
+
+* ``github_review_changeset`` — published as a review branch + pull request by
+  the injected :class:`agency.github_worker.GitHubPublisher` (never merged).
+* anything else — an advisory Horizon cycle, stored as candidate memory.
+
+Run it with ``python -m agency.horizon_worker_main`` (see that module) against
+the same ``HORIZON_DB_PATH`` the dashboard writes to.
 """
 from __future__ import annotations
 from datetime import datetime, timezone
@@ -11,6 +20,8 @@ from typing import Optional
 from .state import StateStore
 from .policy import PolicyEngine, default_engine
 
+GITHUB_CHANGESET_KIND = "github_review_changeset"
+
 
 class DurableHorizonWorker:
     def __init__(
@@ -19,6 +30,7 @@ class DurableHorizonWorker:
         store: StateStore,
         worker_id: str | None = None,
         policy: Optional[PolicyEngine] = None,
+        publisher=None,
     ):
         self.horizon = horizon
         self.store = store
@@ -26,6 +38,7 @@ class DurableHorizonWorker:
         self.poll_seconds = max(30, int(os.getenv("HORIZON_POLL_SECONDS", "60")))
         self.daily_budget = float(os.getenv("HORIZON_DAILY_BUDGET_UNITS", "24"))
         self.policy = policy or default_engine()
+        self.publisher = publisher
 
     def seed_if_empty(self):
         row = self.store.db.execute(
@@ -55,6 +68,8 @@ class DurableHorizonWorker:
             self.store.beat(self.worker_id, "budget-paused")
             return False
         try:
+            if item["kind"] == GITHUB_CHANGESET_KIND:
+                return self._publish_changeset(item)
             task = item["payload"].get("task", "Run continuous improvement cycle")
             answer = self.horizon.advise(task)
             self.policy.require("memory_remember", actor=self.worker_id)
@@ -74,11 +89,50 @@ class DurableHorizonWorker:
             self.store.beat(self.worker_id, "error")
             raise
 
-    def serve_forever(self):
-        while True:
+    def _publish_changeset(self, item: dict) -> bool:
+        """Publish a queued change-set as a review branch + PR. Never merges."""
+        if self.publisher is None:
+            raise RuntimeError(
+                "queued github_review_changeset but no GitHubPublisher is configured: "
+                "set GITHUB_TOKEN and GITHUB_REPO (see horizon_worker_main / "
+                "docs/MIND_MYTHOS_INTEGRATION.md)"
+            )
+        from .github_worker import changeset_from_payload
+
+        payload = dict(item["payload"])
+        payload.setdefault("id", item["id"])
+        branch = payload.pop("branch", None) or f"horizon/proposal-{item['id']}"
+        change = changeset_from_payload(payload, branch=branch)
+        result = self.publisher.publish(change)
+        self.policy.require("memory_remember", actor=self.worker_id)
+        self.store.remember(
+            f"work:{item['id']}",
+            "horizon/work-results",
+            {
+                "kind": GITHUB_CHANGESET_KIND,
+                "branch": result.branch,
+                "pull_request": result.pr_url,
+                "files": result.files,
+                "merged": False,
+            },
+            provenance="Horizon GitHub adapter",
+            confidence="high",
+            status="candidate",
+        )
+        self.store.complete(item["id"])
+        self.store.beat(self.worker_id, f"pr-opened:{result.pr_url or result.branch}")
+        return True
+
+    def serve_forever(self, max_cycles: Optional[int] = None):
+        """Poll the queue forever, or for ``max_cycles`` iterations when given."""
+        cycles = 0
+        while max_cycles is None or cycles < max_cycles:
+            cycles += 1
             self.seed_if_empty()
             try:
                 self.run_one()
             except Exception:
                 pass
+            if max_cycles is not None and cycles >= max_cycles:
+                break
             time.sleep(self.poll_seconds)
