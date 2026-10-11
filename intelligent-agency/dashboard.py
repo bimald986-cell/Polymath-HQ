@@ -19,6 +19,7 @@ PERSONAS={
  "atlas":"You are Atlas, President of Polymath HQ. Think across projects, route problems conceptually to the right specialists, surface dependencies, and give concise executive guidance. Preserve the human President's final authority.",
  "horizon":"You are Horizon, President Advisor for Polymath HQ. Focus on evidence-backed improvements, future readiness, risks, learning and system design. You may recommend or prepare work, but never imply you merged or deployed anything unless execution evidence is available."
 }
+PROJECT_CONTEXT = "Project glossary: M&M means Mind & Mythos, the user's contemplative video brand, NOT candy. Repo bimald986-cell/mind-mythos.\\nOther projects: Sajilo Retail is retail-platform POS; AstroLab is Vedic astrology; W2W is Wonder to Wisdom education; RateBridge is remittances.\\nMind & Mythos images: photorealistic cinematic documentary photography, natural humans and lighting, 16:9, no CGI or cartoons, no text or logos. Maximum 10 seconds per still.\\nLocal Ollama chat has no automatic GitHub or production file access. Never claim files were read. For production 015 scene prompts, ask for its script or scene plan if absent; do not invent final scene-by-scene prompts."
 STYLE="""body{font-family:Segoe UI,Arial;background:#0b1020;color:#e8edf7;margin:0}header{padding:22px 5%;background:#111a31;display:flex;justify-content:space-between;gap:16px;align-items:center}main{max-width:1180px;margin:auto;padding:24px}.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}.tab{background:#202c49;color:#dbe7ff}.tab.active{background:#e8edf7;color:#0b1020}.panel{display:none}.panel.active{display:block}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.card{background:#151e35;border:1px solid #263453;border-radius:14px;padding:18px;margin-bottom:16px}.big{font-size:30px;font-weight:700}.muted{color:#9fb0cf}textarea,select{background:#0d1427;color:white;border:1px solid #35476d;border-radius:10px;padding:11px;box-sizing:border-box}textarea{width:100%;min-height:105px}button{background:#e8edf7;color:#0b1020;border:0;border-radius:9px;padding:11px 18px;font-weight:700;cursor:pointer}button:disabled{opacity:.55}.chat{height:430px;overflow:auto;background:#0d1427;border:1px solid #263453;border-radius:12px;padding:14px;margin:12px 0}.bubble{max-width:82%;padding:11px 13px;border-radius:12px;margin:8px 0;white-space:pre-wrap;line-height:1.45}.user{background:#27406c;margin-left:auto}.assistant{background:#1d2a45}.meta{font-size:12px;color:#9fb0cf;margin-top:5px}.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.grow{flex:1}table{width:100%;border-collapse:collapse}td,th{padding:9px;border-bottom:1px solid #283653;text-align:left}.ok{color:#8de3a7}.warn{color:#ffd37a}.bad{color:#ff9a9a}code{color:#a9c7ff}a{color:#a9c7ff}"""
 
 def ollama_models():
@@ -28,7 +29,7 @@ def ollama_models():
     except Exception: return []
 
 def ollama_chat(model,persona,messages):
-    system=PERSONAS.get(persona,PERSONAS['hq'])
+    system=PERSONAS.get(persona,PERSONAS['hq']) + '\n\n' + PROJECT_CONTEXT
     clean=[]
     for m in messages[-20:]:
         if m.get('role') in ('user','assistant') and isinstance(m.get('content'),str): clean.append({'role':m['role'],'content':m['content'][:12000]})
