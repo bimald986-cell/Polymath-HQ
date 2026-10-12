@@ -1,7 +1,7 @@
 ﻿import unittest
 from unittest.mock import patch
 
-from src.agency.llm import get_backend
+from src.agency.llm import LLMConfigError, get_backend
 from src.agency.model_router import FallbackBackend
 
 
@@ -55,12 +55,31 @@ class RouterTests(unittest.TestCase):
             "os.environ",
             {
                 "AGENCY_LLM": "router",
+                "AGENCY_PRIMARY_BASE_URL": "https://provider.test/v1",
+                "AGENCY_PRIMARY_API_KEY": "k",
+                "AGENCY_PRIMARY_MODEL": "m",
+                # Local Ollama is opt-in only now; without this the router is
+                # refused rather than silently dialling 127.0.0.1.
+                "AGENCY_ALLOW_LOCAL_OLLAMA": "1",
                 "AGENCY_OLLAMA_MODEL": "qwen2.5:3b",
             },
         ):
             backend = get_backend()
             self.assertIsInstance(backend, FallbackBackend)
+            self.assertEqual([name for name, _ in backend.backends], ["primary", "ollama"])
             self.assertEqual(backend.backends[-1][0], "ollama")
+
+    def test_router_without_a_real_provider_is_refused(self):
+        # No cloud provider configured and no opt-in: a router that would have
+        # run on local Ollama (or nothing) must fail loudly, not look live.
+        env = {"AGENCY_LLM": "router", "AGENCY_ALLOW_LOCAL_OLLAMA": ""}
+        for prefix in ("AGENCY_PRIMARY", "AGENCY_SECONDARY"):
+            for suffix in ("BASE_URL", "API_KEY", "MODEL"):
+                env[f"{prefix}_{suffix}"] = ""
+        with patch.dict("os.environ", env):
+            with self.assertRaises(LLMConfigError) as excinfo:
+                get_backend()
+            self.assertIn("no real provider", str(excinfo.exception))
 
 
 if __name__ == "__main__":

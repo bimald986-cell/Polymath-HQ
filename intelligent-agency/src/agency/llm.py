@@ -9,6 +9,13 @@ endpoint, including a LOCAL gateway such as OmniRoute:
     AGENCY_LLM_BASE_URL=http://127.0.0.1:20128/v1   # e.g. OmniRoute
     AGENCY_LLM_API_KEY=sk-...
     AGENCY_LLM_MODEL=gpt-4o-mini                     # or any routed model
+
+Mock is the *development* default and stays available, but it is never reached by
+accident: ``AGENCY_LLM=openai`` without a key, an unknown ``AGENCY_LLM`` value, and
+``AGENCY_LLM=router`` with no complete real provider all raise ``LLMConfigError``.
+A router adds local Ollama only when ``AGENCY_ALLOW_LOCAL_OLLAMA=1`` opts into it.
+Unattended callers (``horizon_worker_main``) additionally require a live backend by
+default; see ``docs/POLICY_ENGINE.md``.
 """
 from __future__ import annotations
 
@@ -151,15 +158,6 @@ def get_backend() -> LLMBackend:
                 OpenAICompatibleBackend(base, key, model),
             ))
 
-        if not providers:
-            raise LLMConfigError(
-                "AGENCY_LLM=router is configured but no real provider is set up "
-                "(AGENCY_PRIMARY_BASE_URL / AGENCY_PRIMARY_API_KEY / "
-                "AGENCY_PRIMARY_MODEL, or the AGENCY_SECONDARY_* equivalents). "
-                "Local Ollama is used only when AGENCY_ALLOW_LOCAL_OLLAMA opts into "
-                "it, so refusing to run what would look live but is not."
-            )
-
         if os.getenv("AGENCY_ALLOW_LOCAL_OLLAMA", "").strip().lower() in ("1", "true", "yes"):
             providers.append((
                 "ollama",
@@ -169,6 +167,15 @@ def get_backend() -> LLMBackend:
                     os.getenv("AGENCY_OLLAMA_MODEL", "qwen2.5:3b"),
                 ),
             ))
+
+        if not providers:
+            raise LLMConfigError(
+                "AGENCY_LLM=router is configured but no real provider is set up "
+                "(AGENCY_PRIMARY_BASE_URL / AGENCY_PRIMARY_API_KEY / "
+                "AGENCY_PRIMARY_MODEL, or the AGENCY_SECONDARY_* equivalents). "
+                "Local Ollama is used only when AGENCY_ALLOW_LOCAL_OLLAMA opts into "
+                "it, so refusing to run what would look live but is not."
+            )
 
         return FallbackBackend(providers)
 
