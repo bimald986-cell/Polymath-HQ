@@ -15,7 +15,14 @@ from .llm import (
     OpenAICompatibleBackend,
 )
 from .runtime import HorizonRuntime, RuntimeEvent
-from .policy import PolicyEngine, ToolRisk, PolicyDecision, default_engine
+from .policy import (
+    PolicyEngine,
+    PolicyAuditSink,
+    ToolRisk,
+    PolicyDecision,
+    default_engine,
+    default_audit_sink,
+)
 from .agent_loop import run_agent_loop, LoopResult, LoopStep
 from .state import StateStore
 from .worker import DurableHorizonWorker
@@ -28,7 +35,8 @@ __all__ = [
     "get_backend", "require_live_backend", "LLMConfigError",
     "LLMBackend", "MockBackend", "OpenAICompatibleBackend",
     "HorizonRuntime", "RuntimeEvent",
-    "PolicyEngine", "ToolRisk", "PolicyDecision", "default_engine",
+    "PolicyEngine", "PolicyAuditSink", "ToolRisk", "PolicyDecision",
+    "default_engine", "default_audit_sink",
     "run_agent_loop", "LoopResult", "LoopStep",
     "StateStore", "DurableHorizonWorker",
     "GitHubClient", "GitHubError", "GitHubAuthError",

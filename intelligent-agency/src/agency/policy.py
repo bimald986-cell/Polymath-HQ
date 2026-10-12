@@ -7,12 +7,20 @@ Rules:
 - Classify every tool by risk level.
 - Block irreversible actions unless President-level authorization is present.
 - Log decisions with provenance for audit.
+
+Audit durability: every engine writes its decisions to a
+:class:`PolicyAuditSink`. ``default_engine()`` hands out a *shared* sink, so a
+decision survives the call that produced it, and the sink appends each entry as
+a JSON line to ``HORIZON_POLICY_AUDIT_PATH`` when that is configured (the
+durable worker sets it next to the queue DB). See ``docs/POLICY_ENGINE.md``.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
+import json
+import os
 import time
 
 
@@ -60,6 +68,42 @@ class PolicyDecision:
         }
 
 
+class PolicyAuditSink:
+    """Append-only audit trail for policy decisions.
+
+    An engine writes every decision here. The sink keeps the entries in memory
+    *and*, when ``path`` is set, appends each one as a JSON line so the trail
+    outlives the process. ``default_engine()`` shares one sink per process, so a
+    decision is still readable after the call that produced it returned.
+    """
+
+    def __init__(self, path: Optional[str] = None, entries: Optional[List[Dict[str, Any]]] = None):
+        self.path = path
+        self.entries: List[Dict[str, Any]] = entries if entries is not None else []
+
+    def record(self, entry: Dict[str, Any]) -> None:
+        self.entries.append(entry)
+        if not self.path:
+            return
+        directory = os.path.dirname(os.path.abspath(self.path))
+        os.makedirs(directory, exist_ok=True)
+        with open(self.path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry, sort_keys=True) + "\n")
+
+    def read_persisted(self) -> List[Dict[str, Any]]:
+        """Read the durable JSONL trail back (empty when nothing is persisted)."""
+        if not self.path or not os.path.exists(self.path):
+            return []
+        with open(self.path, "r", encoding="utf-8") as fh:
+            return [json.loads(line) for line in fh if line.strip()]
+
+    def last(self, *, actor: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        for entry in reversed(self.entries):
+            if actor is None or entry.get("actor") == actor:
+                return entry
+        return None
+
+
 class PolicyEngine:
     """Minimal multi-layer gate for tool calls.
 
@@ -73,12 +117,20 @@ class PolicyEngine:
         tool_risks: Optional[Dict[str, ToolRisk]] = None,
         network_allowlist: Optional[List[str]] = None,
         audit_log: Optional[List[Dict[str, Any]]] = None,
+        audit_sink: Optional[PolicyAuditSink] = None,
     ):
         self.tool_risks = dict(DEFAULT_TOOL_RISKS)
         if tool_risks:
             self.tool_risks.update(tool_risks)
         self.network_allowlist = set(network_allowlist or [])
-        self.audit_log: List[Dict[str, Any]] = audit_log if audit_log is not None else []
+        if audit_sink is not None:
+            self.audit_sink = audit_sink
+        else:
+            # A private sink by default: an explicitly built engine is isolated
+            # unless the caller injects a shared one.
+            self.audit_sink = PolicyAuditSink(entries=audit_log)
+        # ``audit_log`` stays the engine's view of the trail it writes to.
+        self.audit_log: List[Dict[str, Any]] = self.audit_sink.entries
 
     def classify(self, tool: str) -> ToolRisk:
         return self.tool_risks.get(tool, ToolRisk.NETWORK)
@@ -147,8 +199,36 @@ class PolicyEngine:
         entry = decision.as_dict()
         entry["actor"] = actor
         entry["target"] = target
-        self.audit_log.append(entry)
+        self.audit_sink.record(entry)
+
+
+# Shared by every engine ``default_engine()`` hands out, so a decision is still
+# there once the call that produced it has returned (and, when a path is
+# configured, once the process has exited).
+_DEFAULT_AUDIT_SINK: Optional[PolicyAuditSink] = None
+
+# Where the durable trail goes when the environment names it. The durable
+# worker defaults it to ``<queue dir>/policy_audit.jsonl`` (see
+# ``horizon_worker_main.build_worker``).
+AUDIT_PATH_ENV = "HORIZON_POLICY_AUDIT_PATH"
+
+
+def policy_audit_path() -> Optional[str]:
+    """The configured durable audit path, or ``None`` when not configured."""
+    return os.getenv(AUDIT_PATH_ENV, "").strip() or None
+
+
+def default_audit_sink() -> PolicyAuditSink:
+    """The process-wide audit sink shared by default engines."""
+    global _DEFAULT_AUDIT_SINK
+    if _DEFAULT_AUDIT_SINK is None:
+        _DEFAULT_AUDIT_SINK = PolicyAuditSink()
+    # Re-resolve each call so a launch-time configuration (the worker) is
+    # honoured even if an engine was built earlier in the process.
+    _DEFAULT_AUDIT_SINK.path = policy_audit_path()
+    return _DEFAULT_AUDIT_SINK
 
 
 def default_engine(network_allowlist: Optional[List[str]] = None) -> PolicyEngine:
-    return PolicyEngine(network_allowlist=network_allowlist)
+    """Build an engine whose audit trail survives the call that wrote it."""
+    return PolicyEngine(network_allowlist=network_allowlist, audit_sink=default_audit_sink())
