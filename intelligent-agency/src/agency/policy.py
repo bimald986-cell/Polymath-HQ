@@ -32,8 +32,15 @@ class ToolRisk(str, Enum):
 
 
 # Default risk map for known tools. Unknown tools default to NETWORK (cautious).
+# Implemented ids (see ``builtin_tools.py``, the tool-use channel): ``read_file``
+# covers the intended ``local_file_read`` capability, and ``run_tests`` is new.
+# Both are also declared by the tool itself: ``ToolDispatcher`` writes a
+# registered tool's declared risk into this map, so the tool, not the caller,
+# decides how it is classified.
 DEFAULT_TOOL_RISKS: Dict[str, ToolRisk] = {
     "local_file_read": ToolRisk.READ,
+    "read_file": ToolRisk.READ,
+    "run_tests": ToolRisk.WRITE_LOCAL,
     "memory_recall": ToolRisk.READ,
     "memory_remember": ToolRisk.WRITE_LOCAL,
     "enqueue_work": ToolRisk.WRITE_LOCAL,
