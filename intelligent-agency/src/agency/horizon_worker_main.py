@@ -11,9 +11,18 @@ Run it on the same machine as the dashboard, with the same database:
     python -m agency.horizon_worker_main --once          # process at most one item
     python -m agency.horizon_worker_main --publish-github  # enable branch/PR publishing
 
+A live LLM provider is required by default: the worker refuses to start when
+``AGENCY_LLM`` would resolve to the mock backend, so an unattended run cannot
+emit canned text that looks like reasoning. Pass ``--allow-mock-llm`` to opt
+into the mock backend for local development only.
+
 Database path resolution matches ``dashboard.py:11`` exactly, so a command
 submitted in the President Console is picked up here:
 ``HORIZON_DB_PATH`` if set, otherwise ``intelligent-agency/.horizon/horizon.db``.
+
+Policy decisions taken by the worker are appended to
+``<queue dir>/policy_audit.jsonl`` (override with ``HORIZON_POLICY_AUDIT_PATH``),
+so the audit trail survives the process that produced it.
 
 Authority boundary: this worker may write to review branches and open pull
 requests. It cannot merge, and it refuses to run a GitHub cycle at all without
@@ -32,6 +41,7 @@ from .github_client import GitHubAuthError, GitHubClient
 from .github_worker import GitHubPublisher
 from .llm import LLMConfigError, require_live_backend
 from .loader import build_agency
+from .policy import AUDIT_PATH_ENV, default_engine
 from .state import StateStore
 from .worker import DurableHorizonWorker
 
@@ -60,13 +70,22 @@ def build_worker(
     publisher=None,
 ) -> DurableHorizonWorker:
     """Wire the existing pieces into one runnable worker."""
-    store = StateStore(db_path or default_db_path())
+    resolved_db = db_path or default_db_path()
+    # Make the policy audit trail durable next to the queue DB unless the
+    # operator points HORIZON_POLICY_AUDIT_PATH somewhere else. The engine comes
+    # from default_engine(), so the worker shares the one process-wide audit
+    # sink instead of writing decisions to an object nobody can read.
+    os.environ.setdefault(
+        AUDIT_PATH_ENV, str(Path(resolved_db).resolve().parent / "policy_audit.jsonl")
+    )
+    store = StateStore(resolved_db)
     agency = build_agency()
     return DurableHorizonWorker(
         agency.advisor,
         store,
         worker_id=worker_id,
         publisher=publisher,
+        policy=default_engine(),
     )
 
 
@@ -90,9 +109,17 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="target repository 'owner/name' for publishing (default: GITHUB_REPO)",
     )
     parser.add_argument(
+        "--allow-mock-llm",
+        action="store_true",
+        help=(
+            "development only: run against the canned mock backend instead of "
+            "refusing to start without a live LLM provider"
+        ),
+    )
+    parser.add_argument(
         "--require-live-llm",
         action="store_true",
-        help="refuse to start when only the mock LLM backend is configured",
+        help="deprecated no-op: a live LLM backend is now required by default",
     )
     return parser.parse_args(argv)
 
@@ -100,12 +127,23 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 def main(argv: Optional[List[str]] = None) -> int:
     args = parse_args(argv)
 
-    if args.require_live_llm:
+    if not args.allow_mock_llm:
         try:
             require_live_backend()
         except LLMConfigError as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
+            print(
+                "Hint: this worker requires a live LLM provider by default. For a "
+                "local development run against the mock backend, pass --allow-mock-llm.",
+                file=sys.stderr,
+            )
             return 2
+    else:
+        print(
+            "WARNING: --allow-mock-llm is set: this run will emit canned mock text, "
+            "not model reasoning. Do not use it for unattended cycles.",
+            file=sys.stderr,
+        )
 
     publisher = None
     if args.publish_github:

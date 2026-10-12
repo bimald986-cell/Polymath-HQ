@@ -153,7 +153,9 @@ def test_build_worker_wires_store_and_advisor(tmp_path):
 def test_main_once_processes_a_queued_item(tmp_path, capsys):
     db = str(tmp_path / "queue.db")
     StateStore(db).enqueue("president_command", {"task": "hello from the dashboard"})
-    rc = main(["--once", "--db", db, "--worker-id", "cli"])
+    # A live LLM provider is required by default; --allow-mock-llm is the
+    # documented, explicit development opt-in.
+    rc = main(["--once", "--db", db, "--worker-id", "cli", "--allow-mock-llm"])
     out = capsys.readouterr().out
     assert rc == 0
     payload = json.loads(out.strip().splitlines()[-1])
@@ -163,22 +165,48 @@ def test_main_once_processes_a_queued_item(tmp_path, capsys):
 
 
 def test_main_once_is_idle_safe(tmp_path):
-    assert main(["--once", "--db", str(tmp_path / "empty.db")]) == 0
+    assert main(["--once", "--db", str(tmp_path / "empty.db"), "--allow-mock-llm"]) == 0
 
 
 def test_main_publish_github_without_token_exits_non_zero(tmp_path, capsys, monkeypatch):
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
-    rc = main(["--once", "--db", str(tmp_path / "q.db"), "--publish-github"])
+    rc = main(
+        ["--once", "--db", str(tmp_path / "q.db"), "--publish-github", "--allow-mock-llm"]
+    )
     assert rc == 2
     assert "GITHUB_TOKEN" in capsys.readouterr().err
 
 
-def test_main_require_live_llm_exits_non_zero_when_mock(tmp_path, capsys, monkeypatch):
+def test_main_refuses_mock_by_default(tmp_path, capsys, monkeypatch):
+    """No live provider configured and no opt-in: refuse rather than emit canned text."""
+    for var in (
+        "AGENCY_LLM",
+        "AGENCY_LLM_API_KEY",
+        "AGENCY_PRIMARY_API_KEY",
+        "AGENCY_SECONDARY_API_KEY",
+    ):
+        monkeypatch.delenv(var, raising=False)
+    rc = main(["--once", "--db", str(tmp_path / "q.db")])
+    err = capsys.readouterr().err
+    assert rc == 2
+    assert "No live LLM provider" in err
+    assert "--allow-mock-llm" in err
+
+
+def test_main_require_live_llm_is_a_deprecated_no_op(tmp_path, capsys, monkeypatch):
+    # The flag survives for back-compat but the guard is now the default.
     for var in ("AGENCY_LLM", "AGENCY_LLM_API_KEY", "AGENCY_PRIMARY_API_KEY"):
         monkeypatch.delenv(var, raising=False)
     rc = main(["--once", "--db", str(tmp_path / "q.db"), "--require-live-llm"])
     assert rc == 2
     assert "No live LLM provider" in capsys.readouterr().err
+
+
+def test_main_allow_mock_llm_warns_loudly(tmp_path, capsys):
+    rc = main(["--once", "--db", str(tmp_path / "q.db"), "--allow-mock-llm"])
+    err = capsys.readouterr().err
+    assert rc == 0
+    assert "WARNING" in err and "canned mock text" in err
 
 
 def test_root_launcher_script_exists():

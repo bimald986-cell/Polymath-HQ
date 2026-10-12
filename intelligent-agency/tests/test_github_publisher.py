@@ -133,9 +133,13 @@ def test_policy_decision_is_audited():
     transport = FakeTransport()
     client = GitHubClient(repo="owner/repo", token="t", transport=transport)
     GitHubPublisher(client, policy=engine).publish(sample_change())
-    assert [entry["tool"] for entry in engine.audit_log] == ["github_review_changeset"]
-    assert engine.audit_log[0]["allowed"] is True
-    assert engine.audit_log[0]["target"] == "horizon/improve-docs"
+    # The default engine writes to one shared process-wide trail, so assert on
+    # the entry this publish appended rather than on a per-engine reset log.
+    tools = [entry["tool"] for entry in engine.audit_log]
+    assert tools[-1] == "github_review_changeset"
+    last = engine.audit_log[-1]
+    assert last["allowed"] is True
+    assert last["target"] == "horizon/improve-docs"
 
 
 def test_publisher_requires_a_client():

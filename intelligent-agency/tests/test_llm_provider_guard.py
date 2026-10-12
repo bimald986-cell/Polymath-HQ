@@ -32,6 +32,7 @@ PROVIDER_VARS = (
     "AGENCY_SECONDARY_API_KEY",
     "AGENCY_SECONDARY_BASE_URL",
     "AGENCY_SECONDARY_MODEL",
+    "AGENCY_ALLOW_LOCAL_OLLAMA",
 )
 
 
@@ -78,12 +79,68 @@ def test_router_provider_is_accepted(clean_env):
     clean_env.setenv("AGENCY_PRIMARY_MODEL", "m")
     backend = require_live_backend()
     assert not isinstance(backend, MockBackend)
+    # Local Ollama is opt-in only, so a router with a real provider does not
+    # silently acquire a second, unverified backend.
+    assert [name for name, _ in backend.backends] == ["primary"]
 
 
-def test_router_with_only_local_ollama_still_counts_as_live(clean_env):
-    # The router falls back to local Ollama; that is a real provider, not mock text.
+def test_router_with_no_real_provider_fails_loudly(clean_env):
+    """A router whose only candidate was local Ollama used to 'count as live'
+    while in fact running on a local guess. It now refuses."""
     clean_env.setenv("AGENCY_LLM", "router")
-    assert not isinstance(require_live_backend(), MockBackend)
+    with pytest.raises(LLMConfigError) as excinfo:
+        require_live_backend()
+    assert "no real provider" in str(excinfo.value)
+    assert "AGENCY_ALLOW_LOCAL_OLLAMA" in str(excinfo.value)
+
+
+def test_router_with_local_ollama_is_refused_unless_opted_in(clean_env):
+    from agency.llm import get_backend
+
+    clean_env.setenv("AGENCY_LLM", "router")
+    with pytest.raises(LLMConfigError):
+        get_backend()
+    clean_env.setenv("AGENCY_ALLOW_LOCAL_OLLAMA", "1")
+    backend = get_backend()
+    assert not isinstance(backend, MockBackend)
+    assert [name for name, _ in backend.backends] == ["ollama"]
+
+
+def test_router_with_a_half_configured_provider_is_refused(clean_env):
+    clean_env.setenv("AGENCY_LLM", "router")
+    clean_env.setenv("AGENCY_PRIMARY_BASE_URL", "https://provider.test/v1")
+    # API key and model missing: do not treat this as configured.
+    with pytest.raises(LLMConfigError) as excinfo:
+        require_live_backend()
+    assert "partially" in str(excinfo.value)
+
+
+def test_get_backend_raises_when_a_real_provider_is_requested_without_credentials(clean_env):
+    from agency.llm import get_backend
+
+    clean_env.setenv("AGENCY_LLM", "openai")
+    with pytest.raises(LLMConfigError) as excinfo:
+        get_backend()
+    assert "AGENCY_LLM_API_KEY" in str(excinfo.value)
+    # ...and it did not quietly answer with canned mock text instead.
+    clean_env.setenv("AGENCY_LLM_API_KEY", "sk-test")
+    assert isinstance(get_backend(), OpenAICompatibleBackend)
+
+
+def test_get_backend_refuses_an_unknown_provider(clean_env):
+    from agency.llm import get_backend
+
+    clean_env.setenv("AGENCY_LLM", "opemai")  # a typo must not become mock
+    with pytest.raises(LLMConfigError) as excinfo:
+        get_backend()
+    assert "Unknown AGENCY_LLM" in str(excinfo.value)
+
+
+def test_get_backend_still_returns_mock_when_mock_is_asked_for(clean_env):
+    from agency.llm import get_backend
+
+    clean_env.setenv("AGENCY_LLM", "mock")
+    assert isinstance(get_backend(), MockBackend)
 
 
 # ------------------------------------------------------- the scheduled workflow
