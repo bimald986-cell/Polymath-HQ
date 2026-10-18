@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
 from .policy import PolicyEngine, default_engine
-from .tools import ToolDispatcher
+from .tools import ToolDispatcher, UnknownToolError
 
 
 @dataclass
@@ -102,13 +102,29 @@ def run_agent_loop(
             # The loop executes the tool through the dispatcher: policy is
             # checked inside ToolDispatcher.dispatch, never here, so a step
             # cannot run a tool that policy refuses.
-            executed = dispatcher.dispatch(
-                str(tool),
-                out.get("arguments") or {},
-                actor=actor,
-                president_authorized=president_authorized,
-                target=out.get("target"),
-            )
+            try:
+                executed = dispatcher.dispatch(
+                    str(tool),
+                    out.get("arguments") or {},
+                    actor=actor,
+                    president_authorized=president_authorized,
+                    target=out.get("target"),
+                )
+            except UnknownToolError as exc:
+                # A planner (or a model) naming a tool that does not exist is a
+                # failed run, reported as one: the loop stops with status
+                # "error" and the full reason, rather than raising out of the
+                # loop so the run leaves no record at all.
+                steps.append(
+                    LoopStep(
+                        index=i,
+                        tool=str(tool),
+                        observation={"error": str(exc)},
+                        terminal=True,
+                        error=str(exc),
+                    )
+                )
+                return LoopResult(status="error", steps=steps, message=str(exc))
             observation = executed.as_dict()
             if executed.denied:
                 steps.append(

@@ -10,9 +10,10 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 from agency import build_agency  # noqa: E402
 from agency.builtin_tools import default_registry  # noqa: E402
+from agency.llm import LLMConfigError, get_backend, require_live_backend  # noqa: E402
 from agency.policy import default_engine  # noqa: E402
 from agency.tool_agent import run_tool_loop  # noqa: E402
-from agency.tools import ToolDispatcher  # noqa: E402
+from agency.tools import ToolDispatcher, ToolError  # noqa: E402
 
 
 def _parse_args(raw_args):
@@ -37,17 +38,34 @@ def _run_tool_command(args) -> int:
         return 0
     dispatcher = ToolDispatcher(registry, default_engine(), actor=args.actor)
     if args.command == "tool":
-        result = dispatcher.dispatch(args.name, _parse_args(args.arg), actor=args.actor)
+        try:
+            result = dispatcher.dispatch(args.name, _parse_args(args.arg), actor=args.actor)
+        except ToolError as exc:
+            # A name that is not in the registry is a refused call, reported as
+            # one — not a traceback from the CLI.
+            print(json.dumps({"tool": args.name, "ok": False, "error": str(exc)}, indent=2))
+            return 1
         print(json.dumps(result.as_dict(), indent=2, default=str))
         return 0 if result.ok else 1
     plan = None
     if args.plan:
         with open(args.plan, "r", encoding="utf-8") as handle:
             plan = json.load(handle)
+    backend = None
+    if plan is None:
+        # No plan means the *model* chooses which tools run. A mock backend
+        # would look like an agent working while doing no reasoning, so require
+        # a real provider unless the operator asks for the mock explicitly.
+        try:
+            backend = get_backend() if args.allow_mock_llm else require_live_backend()
+        except LLMConfigError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
     result = run_tool_loop(
         task=args.query,
         registry=registry,
         policy=dispatcher.policy,
+        backend=backend,
         plan=plan,
         max_steps=args.max_steps,
         actor=args.actor,
@@ -92,6 +110,11 @@ def main(argv=None) -> int:
     p_loop.add_argument("--repo-root", default=None)
     p_loop.add_argument("--out", default=None, help="Append the run result as one JSON line here")
     p_loop.add_argument("--actor", default="cli")
+    p_loop.add_argument(
+        "--allow-mock-llm",
+        action="store_true",
+        help="Allow the mock backend when no --plan is given (development only)",
+    )
 
     args = parser.parse_args(argv)
 
