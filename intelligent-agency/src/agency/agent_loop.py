@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
 from .policy import PolicyEngine, default_engine
+from .tools import ToolDispatcher
 
 
 @dataclass
@@ -55,20 +56,30 @@ def run_agent_loop(
     policy: Optional[PolicyEngine] = None,
     president_authorized: bool = False,
     actor: str = "horizon",
+    dispatcher: Optional[ToolDispatcher] = None,
 ) -> LoopResult:
     """Run a bounded agent loop.
 
     ``step_fn(step_index, prior_steps)`` must return a dict:
       - tool: optional tool name (checked via PolicyEngine when present)
+      - arguments: optional tool arguments, dispatched when a ``dispatcher`` is
+        attached — the tool then runs through ``ToolDispatcher.dispatch``, which
+        gates it on policy *inside* the dispatch path
       - target: optional network target for allowlist
-      - observation: result of the action
+      - observation: result of the action (the caller executed it itself)
       - terminal: True to stop successfully
       - answer: optional final answer when terminal
+
+    Pass a ``dispatcher`` to make the loop able to *execute* tools: a step that
+    names a tool and does not supply its own ``observation`` has the tool run
+    for it, with the result becoming the step's observation. Pass ``policy``
+    alone to keep the previous behaviour, where the caller executes and only the
+    declaration is checked.
     """
     if max_steps < 1:
         raise ValueError("max_steps must be >= 1")
 
-    eng = policy or default_engine()
+    eng = policy or (dispatcher.policy if dispatcher is not None else None) or default_engine()
     steps: List[LoopStep] = []
 
     for i in range(1, max_steps + 1):
@@ -85,7 +96,36 @@ def run_agent_loop(
             )
 
         tool = out.get("tool")
-        if tool:
+        observation = out.get("observation")
+        executed = None
+        if tool and dispatcher is not None and "observation" not in out:
+            # The loop executes the tool through the dispatcher: policy is
+            # checked inside ToolDispatcher.dispatch, never here, so a step
+            # cannot run a tool that policy refuses.
+            executed = dispatcher.dispatch(
+                str(tool),
+                out.get("arguments") or {},
+                actor=actor,
+                president_authorized=president_authorized,
+                target=out.get("target"),
+            )
+            observation = executed.as_dict()
+            if executed.denied:
+                steps.append(
+                    LoopStep(
+                        index=i,
+                        tool=str(tool),
+                        observation=observation,
+                        terminal=True,
+                        error=executed.error,
+                    )
+                )
+                return LoopResult(
+                    status="blocked",
+                    steps=steps,
+                    message=executed.error or "tool denied by policy",
+                )
+        elif tool:
             decision = eng.check(
                 str(tool),
                 president_authorized=president_authorized,
@@ -113,8 +153,9 @@ def run_agent_loop(
             LoopStep(
                 index=i,
                 tool=str(tool) if tool else None,
-                observation=out.get("observation"),
+                observation=observation,
                 terminal=terminal,
+                error=executed.error if executed is not None else None,
             )
         )
         if terminal:

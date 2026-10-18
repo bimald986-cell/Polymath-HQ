@@ -24,6 +24,32 @@ from .policy import (
     default_audit_sink,
 )
 from .agent_loop import run_agent_loop, LoopResult, LoopStep
+from .tools import (
+    Tool,
+    ToolResult,
+    ToolRegistry,
+    ToolDispatcher,
+    ToolError,
+    UnknownToolError,
+    ToolArgumentError,
+    ToolSandboxError,
+)
+from .builtin_tools import (
+    REPO_ROOT_ENV,
+    MAX_READ_BYTES,
+    MAX_TEST_OUTPUT_BYTES,
+    default_registry,
+    read_file,
+    run_tests,
+    resolve_repo_root,
+)
+from .tool_agent import (
+    ScriptedPlanner,
+    LLMToolPlanner,
+    parse_tool_call,
+    persist_loop_result,
+    run_tool_loop,
+)
 from .state import StateStore
 from .worker import DurableHorizonWorker
 from .github_client import GitHubClient, GitHubError, GitHubAuthError
