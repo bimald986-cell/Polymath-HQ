@@ -177,7 +177,7 @@ def test_run_tests_does_not_inherit_unapproved_parent_environment(tmp_path, monk
         return type(
             "Completed",
             (),
-            {"stdout": b"1 passed\\n", "stderr": b"", "returncode": 0},
+            {"stdout": b"1 passed\n", "stderr": b"", "returncode": 0},
         )()
 
     monkeypatch.setenv("OPENAI_API_KEY", "do-not-forward")
