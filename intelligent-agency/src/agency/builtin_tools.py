@@ -52,6 +52,37 @@ DEFAULT_TEST_TIMEOUT = 300
 MAX_TEST_TIMEOUT = 1_800
 MAX_TEST_OUTPUT_BYTES = 8_000
 
+# Only ordinary process/runtime settings cross into repository-controlled tests.
+# Provider credentials, CI tokens, cloud keys, and arbitrary parent settings do not.
+_TEST_ENV_ALLOWLIST = frozenset({
+    "PATH",
+    "HOME",
+    "TMPDIR",
+    "TMP",
+    "TEMP",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "TZ",
+    "SYSTEMROOT",
+    "WINDIR",
+    "COMSPEC",
+    "PATHEXT",
+    "USERPROFILE",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "HOMEDRIVE",
+    "HOMEPATH",
+})
+
+
+def _test_environment() -> Dict[str, str]:
+    """Build a minimal environment for untrusted repository test code."""
+    env = {key: value for key, value in os.environ.items() if key in _TEST_ENV_ALLOWLIST}
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+    return env
+
 
 # ------------------------------------------------------------------ sandbox
 def resolve_repo_root(root: Optional[os.PathLike | str] = None) -> Path:
@@ -161,8 +192,7 @@ def run_tests(
         raise ToolArgumentError(f"test target must be a directory inside the repo root: {target!r}")
 
     command = pytest_command() + ["-q", _relative(root_resolved, workdir)]
-    env = dict(os.environ)
-    env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
+    env = _test_environment()
     try:
         proc = subprocess.run(  # noqa: S603 - fixed argv, no shell, sandboxed cwd
             command,
