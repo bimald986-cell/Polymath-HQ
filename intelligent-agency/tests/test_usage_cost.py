@@ -62,6 +62,31 @@ def test_a_response_without_usage_is_unknown_not_zero():
     assert usage["note"]
 
 
+def test_malformed_token_counts_are_unknown_not_truncated_or_negative():
+    for invalid in (-1, True, 1.5, "7"):
+        usage = extract_usage({
+            "usage": {
+                "prompt_tokens": invalid,
+                "completion_tokens": 3,
+                "total_tokens": 4,
+            }
+        })
+        assert usage["status"] == "unknown"
+        assert usage["prompt_tokens"] is None
+        assert usage["completion_tokens"] is None
+        assert usage["total_tokens"] is None
+
+
+def test_zero_token_counts_are_valid_integers():
+    usage = extract_usage({
+        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    })
+    assert usage["status"] == "known"
+    assert usage["prompt_tokens"] == 0
+    assert usage["completion_tokens"] == 0
+    assert usage["total_tokens"] == 0
+
+
 def test_backend_records_usage_and_still_returns_the_content():
     backend = CannedBackend(OPENAI_SHAPED)
     assert backend.complete("system", "user") == "a real answer"
