@@ -23,6 +23,7 @@ class RuntimeEvent:
     status: str
     cycle: int
     message: str
+    usage: Optional[Dict] = None
 
 
 class HorizonRuntime:
@@ -69,7 +70,9 @@ class HorizonRuntime:
         try:
             prompt = augment_prompt(task, self.memory, project=project, tags=tags or ())
             answer = self.horizon.advise(prompt)
-            event = RuntimeEvent(started, self._now(), "ok", self._cycle, str(answer))
+            usage = getattr(self.horizon, "last_usage", None)
+            event = RuntimeEvent(started, self._now(), "ok", self._cycle, str(answer),
+                                 usage if isinstance(usage, dict) else None)
             self._append(event)
             return {"status": "ok", "answer": str(answer), "cycle": str(self._cycle)}
         except Exception as exc:

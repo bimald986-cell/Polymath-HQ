@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Sequence
+from typing import Any, Dict, Sequence
+
+from .llm import unknown_usage
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +18,8 @@ class FallbackBackend:
             raise ValueError("At least one backend is required")
         self.backends = list(backends)
         self.last_provider: str | None = None
+        # Usage of the provider that actually answered; "unknown" until one does.
+        self.last_usage: Dict[str, Any] = unknown_usage("no provider has answered yet")
 
     def complete(self, system_prompt: str, user_prompt: str) -> str:
         failures = []
@@ -26,6 +30,7 @@ class FallbackBackend:
                 if not isinstance(result, str) or not result.strip():
                     raise ValueError("Provider returned an empty response")
                 self.last_provider = name
+                self.last_usage = getattr(backend, "last_usage", None) or unknown_usage()
                 logger.info("LLM provider succeeded: %s", name)
                 return result
             except Exception as exc:
