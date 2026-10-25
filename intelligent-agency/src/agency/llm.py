@@ -39,12 +39,16 @@ def unknown_usage(note: str = "provider response carried no usage envelope") -> 
 
 
 def _token(usage: Dict[str, Any], *names: str):
+    """Return a valid non-negative integer token count, or None if absent/invalid."""
     for name in names:
-        value = usage.get(name)
-        if isinstance(value, bool):
+        if name not in usage:
             continue
-        if isinstance(value, (int, float)):
-            return int(value)
+        value = usage[name]
+        # Token counts are integers. Reject booleans, floats, strings and
+        # negative values instead of silently truncating or accepting them.
+        if type(value) is int and value >= 0:
+            return value
+        return None
     return None
 
 
@@ -60,6 +64,15 @@ def extract_usage(data: Any) -> Dict[str, Any]:
     usage = data.get("usage") if isinstance(data, dict) else None
     if not isinstance(usage, dict):
         return unknown_usage()
+    count_fields = (
+        "prompt_tokens", "input_tokens",
+        "completion_tokens", "output_tokens", "total_tokens",
+    )
+    if any(
+        name in usage and (type(usage[name]) is not int or usage[name] < 0)
+        for name in count_fields
+    ):
+        return unknown_usage("provider usage envelope contained invalid token counts")
     prompt_tokens = _token(usage, "prompt_tokens", "input_tokens")
     completion_tokens = _token(usage, "completion_tokens", "output_tokens")
     if prompt_tokens is None and completion_tokens is None:
