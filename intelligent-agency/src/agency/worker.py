@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 import os, socket, time
 from typing import Optional
 
+from .memory_context import augment_prompt
 from .state import StateStore
 from .policy import PolicyEngine, default_engine
 
@@ -71,12 +72,24 @@ class DurableHorizonWorker:
             if item["kind"] == GITHUB_CHANGESET_KIND:
                 return self._publish_changeset(item)
             task = item["payload"].get("task", "Run continuous improvement cycle")
-            answer = self.horizon.advise(task)
+            prompt = augment_prompt(
+                task,
+                self.store,
+                project=item["payload"].get("project"),
+                tags=item["payload"].get("tags") or (),
+            )
+            answer = self.horizon.advise(prompt)
             self.policy.require("memory_remember", actor=self.worker_id)
             self.store.remember(
                 f"work:{item['id']}",
                 "horizon/work-results",
-                {"task": task, "answer": str(answer)},
+                {
+                    "task": task,
+                    "answer": str(answer),
+                    # Observable: did this cycle actually start from memory, or
+                    # from the same static text as the last one?
+                    "recalled_context": prompt != task,
+                },
                 provenance="Horizon runtime v2",
                 confidence="medium",
                 status="candidate",

@@ -1,0 +1,136 @@
+"""The read half of the learning loop: durable memory -> bounded prompt context.
+
+``StateStore.recall()`` existed and was exercised only by tests, so memory was
+write-only: a cycle stored what it learned in ``horizon.db`` and the next cycle
+started from exactly the same static text. This module turns recalled rows into
+a small, bounded block that a cycle appends to the prompt the model receives.
+
+Bounds (deliberate, so a long-lived database cannot flood a prompt):
+
+- ``RECALL_LIMIT`` = 50 rows fetched from the store (it returns newest first);
+- ``MAX_ENTRIES`` = 5 entries actually rendered into the prompt;
+- ``MAX_ENTRY_CHARS`` = 240 characters per rendered entry;
+- ``MAX_CHARS`` = 1200 characters for the whole recalled block.
+
+If nothing is recalled, :func:`augment_prompt` returns the task **unchanged** --
+no empty header, no stray whitespace, no prompt drift.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from typing import Any, Dict, Iterable, Optional, Sequence
+
+RECALL_LIMIT = 50
+MAX_ENTRIES = 5
+MAX_ENTRY_CHARS = 240
+MAX_CHARS = 1200
+HEADER = "## Recalled memory from earlier cycles"
+
+
+def _slug(text: Any) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", str(text).lower()).strip("-")
+
+
+def _entry_text(entry: Dict[str, Any]) -> str:
+    value = entry.get("value")
+    if not isinstance(value, str):
+        try:
+            value = json.dumps(value, sort_keys=True, default=str)
+        except (TypeError, ValueError):  # pragma: no cover - defensive
+            value = str(value)
+    return " ".join(
+        str(part)
+        for part in (entry.get("key", ""), entry.get("scope", ""), value)
+    )
+
+
+def _is_relevant(entry: Dict[str, Any], project: Optional[str], tags: Sequence[str]) -> bool:
+    """True when the entry belongs to the work item's project or mentions a tag.
+
+    With neither a project nor tags there is nothing to filter on, so every
+    recent entry is eligible -- a generic improvement scan still sees what the
+    HQ learned last time.
+    """
+    haystack = _slug(_entry_text(entry))
+    wanted = []
+    if project:
+        wanted.append(_slug(project))
+    wanted.extend(_slug(tag) for tag in tags if str(tag).strip())
+    if not wanted:
+        return True
+    return any(token and token in haystack for token in wanted)
+
+
+def select_entries(
+    store: Any,
+    *,
+    project: Optional[str] = None,
+    tags: Sequence[str] = (),
+) -> list:
+    """Return the recalled entries worth putting in front of the model."""
+    if store is None:
+        return []
+    rows = store.recall(limit=RECALL_LIMIT) or []
+    picked = [row for row in rows if _is_relevant(row, project, tags)]
+    return picked[:MAX_ENTRIES]
+
+
+def render_entry(entry: Dict[str, Any]) -> str:
+    value = entry.get("value")
+    if not isinstance(value, str):
+        try:
+            value = json.dumps(value, sort_keys=True, default=str)
+        except (TypeError, ValueError):  # pragma: no cover - defensive
+            value = str(value)
+    if len(value) > MAX_ENTRY_CHARS:
+        value = value[: MAX_ENTRY_CHARS - 3] + "..."
+    meta = ", ".join(
+        part
+        for part in (
+            f"scope={entry.get('scope')}" if entry.get("scope") else "",
+            f"confidence={entry.get('confidence')}" if entry.get("confidence") else "",
+            f"status={entry.get('status')}" if entry.get("status") else "",
+        )
+        if part
+    )
+    key = entry.get("key", "(no key)")
+    return f"- {key} ({meta}): {value}" if meta else f"- {key}: {value}"
+
+
+def build_recalled_context(
+    store: Any,
+    *,
+    project: Optional[str] = None,
+    tags: Sequence[str] = (),
+) -> str:
+    """Render recalled memory as a bounded block, or ``""`` when nothing matched."""
+    entries = select_entries(store, project=project, tags=tags)
+    if not entries:
+        return ""
+    lines = []
+    used = len(HEADER)
+    for entry in entries:
+        line = render_entry(entry)
+        if used + len(line) + 1 > MAX_CHARS:
+            break
+        lines.append(line)
+        used += len(line) + 1
+    if not lines:
+        return ""
+    return HEADER + "\n" + "\n".join(lines)
+
+
+def augment_prompt(
+    task: str,
+    store: Any,
+    *,
+    project: Optional[str] = None,
+    tags: Sequence[str] = (),
+) -> str:
+    """Append recalled memory to ``task``, or return ``task`` untouched."""
+    context = build_recalled_context(store, project=project, tags=tags)
+    if not context:
+        return task
+    return f"{task}\n\n{context}"

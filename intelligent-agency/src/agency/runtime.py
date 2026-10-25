@@ -13,6 +13,8 @@ import os
 import time
 from typing import Callable, Dict, List, Optional
 
+from .memory_context import augment_prompt
+
 
 @dataclass
 class RuntimeEvent:
@@ -32,10 +34,14 @@ class HorizonRuntime:
         interval_seconds: int = 3600,
         state_dir: Optional[str] = None,
         max_backoff_seconds: int = 21600,
+        memory=None,
     ):
         if interval_seconds < 60:
             raise ValueError("interval_seconds must be at least 60 seconds")
         self.horizon = horizon
+        # Optional StateStore: when present, a cycle starts from what earlier
+        # cycles remembered instead of from the same static text every time.
+        self.memory = memory
         self.interval_seconds = interval_seconds
         self.max_backoff_seconds = max_backoff_seconds
         self.state_dir = state_dir or os.getenv("HORIZON_STATE_DIR", ".horizon")
@@ -51,11 +57,18 @@ class HorizonRuntime:
         with open(self.audit_path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(asdict(event), sort_keys=True) + "\n")
 
-    def run_once(self, task: str = "Run the continuous improvement cycle") -> Dict[str, str]:
+    def run_once(
+        self,
+        task: str = "Run the continuous improvement cycle",
+        *,
+        project: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+    ) -> Dict[str, str]:
         self._cycle += 1
         started = self._now()
         try:
-            answer = self.horizon.advise(task)
+            prompt = augment_prompt(task, self.memory, project=project, tags=tags or ())
+            answer = self.horizon.advise(prompt)
             event = RuntimeEvent(started, self._now(), "ok", self._cycle, str(answer))
             self._append(event)
             return {"status": "ok", "answer": str(answer), "cycle": str(self._cycle)}
