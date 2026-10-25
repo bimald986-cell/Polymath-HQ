@@ -1,6 +1,6 @@
 """Durable local state for unattended Horizon workers."""
 from __future__ import annotations
-import json, sqlite3, time
+import json, math, sqlite3, time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -90,9 +90,17 @@ class StateStore:
         WHERE clause: SQLite applies it atomically, and ``rowcount`` reports
         whether the unit was actually taken.
         """
-        units = float(units)
-        if units < 0:
-            raise ValueError("cannot charge a negative amount")
+        if isinstance(units, bool) or isinstance(limit, bool):
+            raise ValueError("budget units and limit must be numeric, not boolean")
+        try:
+            units = float(units)
+            limit = float(limit)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("budget units and limit must be finite numbers") from exc
+        if not math.isfinite(units) or units < 0:
+            raise ValueError("budget units must be finite and non-negative")
+        if not math.isfinite(limit) or limit < 0:
+            raise ValueError("budget limit must be finite and non-negative")
         if units > limit:
             return False
         cur = self.db.execute(
