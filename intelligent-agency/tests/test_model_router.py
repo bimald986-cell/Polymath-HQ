@@ -67,7 +67,6 @@ class RouterTests(unittest.TestCase):
             backend = get_backend()
             self.assertIsInstance(backend, FallbackBackend)
             self.assertEqual([name for name, _ in backend.backends], ["primary", "ollama"])
-            self.assertEqual(backend.backends[-1][0], "ollama")
 
     def test_router_without_a_real_provider_is_refused(self):
         # No cloud provider configured and no opt-in: a router that would have

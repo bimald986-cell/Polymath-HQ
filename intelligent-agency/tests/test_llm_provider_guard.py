@@ -17,6 +17,7 @@ must never pin a real provider and never carry an API key literal, and the
 exit loudly.
 """
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -74,9 +75,13 @@ def test_mock_pin_still_yields_mock_backend_from_get_backend(clean_env):
 def test_configured_openai_provider_is_accepted(clean_env):
     clean_env.setenv("AGENCY_LLM", "openai")
     clean_env.setenv("AGENCY_LLM_API_KEY", "sk-test")
+    # The requested model, not the built-in default: asserting ``backend.model``
+    # was truthy passed no matter what, because get_backend() always supplies
+    # the non-empty default "gpt-4o-mini".
+    clean_env.setenv("AGENCY_LLM_MODEL", "requested-model-not-the-default")
     backend = require_live_backend()
     assert isinstance(backend, OpenAICompatibleBackend)
-    assert backend.model  # resolved from env/defaults
+    assert backend.model == "requested-model-not-the-default"
 
 
 def test_openai_without_key_fails_loudly(clean_env):
@@ -157,12 +162,6 @@ def test_get_backend_still_returns_mock_when_mock_is_asked_for(clean_env):
 
 
 # ------------------------------------------------------- the scheduled workflow
-def test_workflow_no_longer_pins_the_mock_backend():
-    text = WORKFLOW.read_text(encoding="utf-8")
-    assert "AGENCY_LLM: mock" not in text
-    assert "AGENCY_LLM: ${{ vars.AGENCY_LLM" in text
-
-
 def test_scheduled_workflow_falls_back_to_mock_only_when_nothing_is_configured():
     """OWNER DECISION (commit 20d65ed): the scheduled cycle keeps running on the
     mock backend when no provider is configured, instead of failing red.
@@ -177,6 +176,15 @@ def test_scheduled_workflow_falls_back_to_mock_only_when_nothing_is_configured()
     assert "AGENCY_LLM: ${{ vars.AGENCY_LLM || 'mock' }}" in text
     # ...and it is a fallback, never a hard pin of the mock backend again.
     assert "AGENCY_LLM: mock" not in text
+    # Every AGENCY_LLM assignment in the file -- there must be exactly one, and
+    # it must be the fallback expression above. Substring greps cannot catch a
+    # re-pin spelled differently ("mock", 'mock', ``AGENCY_LLM:mock``, a second
+    # env block, a stray extra assignment); this list does: it changes the
+    # moment any such line is added or edited.
+    assignments = [
+        line.strip() for line in text.splitlines() if re.match(r"\s*AGENCY_LLM:", line)
+    ]
+    assert assignments == ["AGENCY_LLM: ${{ vars.AGENCY_LLM || 'mock' }}"]
     # A live provider must never be named or keyed in the file itself.
     assert "AGENCY_LLM_API_KEY: ${{ secrets.AGENCY_LLM_API_KEY }}" in text
     assert "sk-" not in text

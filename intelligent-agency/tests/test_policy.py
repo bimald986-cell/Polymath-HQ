@@ -3,6 +3,8 @@ import json
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
 
 from agency.policy import (
@@ -63,12 +65,48 @@ def test_audit_log_records():
     assert eng.audit_sink is default_audit_sink()
 
 
-def test_isolated_engine_keeps_its_own_audit_log():
-    # An explicitly built engine stays isolated unless a sink is injected.
-    eng = PolicyEngine()
-    eng.check("memory_recall", actor="horizon")
-    assert [e["tool"] for e in eng.audit_log] == ["memory_recall"]
-    assert eng.audit_sink is not default_audit_sink()
+def test_every_production_component_lands_on_the_shared_audit_sink(tmp_path, monkeypatch):
+    """The production rule, not the permissive one.
+
+    The old defect had two halves. One was a per-call engine that discarded its
+    trail. The other was a component built as a bare ``PolicyEngine()``, whose
+    path-less sink meant its decisions never left the process. An earlier test
+    here asserted that isolated behaviour as if it were expected, which locked
+    the second half in.
+
+    So assert what production actually relies on: every component that takes
+    ``policy=None`` resolves to ``default_engine()`` and therefore to the shared,
+    durable sink. A call site that builds its own ``PolicyEngine()`` instead --
+    the exact way decisions start vanishing again -- turns this red.
+    """
+    from agency.advisor import PresidentAdvisor
+    from agency.github_worker import GitHubPublisher
+    from agency.state import StateStore
+    from agency.tools import ToolDispatcher, ToolRegistry
+    from agency.worker import DurableHorizonWorker
+
+    audit_path = tmp_path / "policy_audit.jsonl"
+    monkeypatch.setenv(AUDIT_PATH_ENV, str(audit_path))
+
+    # Real objects, constructed exactly as production constructs them: no
+    # ``policy=`` argument anywhere. The worker's horizon/store are inert here;
+    # this test is about the engine each component chooses for itself.
+    components = {
+        "DurableHorizonWorker": DurableHorizonWorker(
+            object(), StateStore(str(tmp_path / "q.db"))
+        ),
+        "ToolDispatcher": ToolDispatcher(ToolRegistry([])),
+        "GitHubPublisher": GitHubPublisher(object()),
+        "PresidentAdvisor": PresidentAdvisor(),
+    }
+
+    for name, component in components.items():
+        assert component.policy.audit_sink is default_audit_sink(), (
+            f"{name} does not use default_engine(): its audit trail is not shared "
+            "or durable"
+        )
+        # ...and the shared sink is the one the environment configured.
+        assert component.policy.audit_sink.path == str(audit_path), name
 
 
 def test_default_engine_decision_survives_the_call_that_made_it():
@@ -100,6 +138,47 @@ def test_policy_decisions_are_persisted_to_a_greppable_file(tmp_path, monkeypatc
     assert sink.path == str(audit_path)
     assert any(e["tool"] == "github_review_changeset" for e in sink.read_persisted())
     assert sink.last(actor="horizon")["tool"] == "github_review_changeset"
+
+
+def test_a_denied_action_is_persisted_to_the_durable_audit_file(tmp_path, monkeypatch):
+    """Only an *allow* was proven durable before this test.
+
+    A denial is the decision that must survive the process: it is the evidence
+    that the gate held, and the thing a reviewer reads afterwards. Drive a real
+    denial through the dispatcher -- no ``policy=`` argument, so the production
+    wiring is what is under test -- and read the JSON line back off disk.
+    """
+    from agency.tools import Tool, ToolDispatcher, ToolRegistry
+
+    audit_path = tmp_path / "policy_audit.jsonl"
+    monkeypatch.setenv(AUDIT_PATH_ENV, str(audit_path))
+
+    registry = ToolRegistry(
+        [
+            Tool(
+                name="spend_funds",
+                description="Spend money. Irreversible, so it needs the President.",
+                parameters={"type": "object", "properties": {}, "required": []},
+                risk=ToolRisk.IRREVERSIBLE,
+                executor=lambda **_: pytest.fail("a denied tool must never execute"),
+            )
+        ]
+    )
+
+    result = ToolDispatcher(registry, actor="atlas").dispatch("spend_funds", {})
+    assert result.denied is True
+
+    lines = [ln for ln in audit_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    assert lines, "the denial was never written to the durable audit file"
+    persisted = json.loads(lines[-1])
+    assert persisted["allowed"] is False
+    assert persisted["tool"] == "spend_funds"
+    assert persisted["risk"] == ToolRisk.IRREVERSIBLE.value
+    assert "President authorization required" in persisted["reason"]
+    assert persisted["actor"] == "atlas"
+
+    # And readable back through the sink API, as a later process would.
+    assert default_audit_sink().last(actor="atlas")["allowed"] is False
 
 
 def test_audit_sink_without_a_path_stays_in_memory(tmp_path):

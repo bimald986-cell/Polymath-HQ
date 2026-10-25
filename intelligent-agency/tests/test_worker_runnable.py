@@ -193,13 +193,31 @@ def test_main_refuses_mock_by_default(tmp_path, capsys, monkeypatch):
     assert "--allow-mock-llm" in err
 
 
-def test_main_require_live_llm_is_a_deprecated_no_op(tmp_path, capsys, monkeypatch):
-    # The flag survives for back-compat but the guard is now the default.
+def test_main_require_live_llm_flag_changes_nothing(tmp_path, capsys, monkeypatch):
+    """The documented behaviour of ``--require-live-llm`` is that it is a no-op:
+    the live-provider guard is now the default, so the flag exists only so old
+    invocations keep parsing.
+
+    The previous version asserted ``rc == 2`` and the error text, which passed
+    identically whether the flag did something or nothing. This asserts the
+    no-op itself: the bare run and the flagged run must be indistinguishable in
+    both exit code and stderr.
+    """
+    from agency.horizon_worker_main import parse_args
+
     for var in ("AGENCY_LLM", "AGENCY_LLM_API_KEY", "AGENCY_PRIMARY_API_KEY"):
         monkeypatch.delenv(var, raising=False)
-    rc = main(["--once", "--db", str(tmp_path / "q.db"), "--require-live-llm"])
-    assert rc == 2
-    assert "No live LLM provider" in capsys.readouterr().err
+    db = str(tmp_path / "q.db")
+
+    bare_rc = main(["--once", "--db", db])
+    bare_err = capsys.readouterr().err
+    flagged_rc = main(["--once", "--db", db, "--require-live-llm"])
+    flagged_err = capsys.readouterr().err
+
+    assert bare_rc == 2
+    assert (flagged_rc, flagged_err) == (bare_rc, bare_err)
+    # The flag is still accepted by the parser, so existing scripts do not break.
+    assert parse_args(["--require-live-llm"]).require_live_llm is True
 
 
 def test_main_allow_mock_llm_warns_loudly(tmp_path, capsys):
