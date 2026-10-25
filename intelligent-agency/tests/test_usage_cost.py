@@ -5,9 +5,12 @@ response. And the budget was enforced check-then-write, so two workers could
 both pass the check and both spend the last unit.
 """
 
+import math
 import os
 import sys
 import threading
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
 
@@ -194,6 +197,28 @@ def test_budget_refuses_a_charge_larger_than_the_whole_limit(tmp_path):
     store = StateStore(str(tmp_path / "horizon.db"))
     assert store.charge("p", 5.0, 1.0) is False
     assert store.db.execute("SELECT COUNT(*) n FROM budget").fetchone()["n"] == 0
+
+
+@pytest.mark.parametrize("bad_units", [math.nan, math.inf, -math.inf])
+def test_budget_rejects_non_finite_units(tmp_path, bad_units):
+    store = StateStore(str(tmp_path / "horizon.db"))
+    with pytest.raises(ValueError, match="finite"):
+        store.charge("p", bad_units, 10.0)
+
+
+@pytest.mark.parametrize("bad_limit", [math.nan, math.inf, -math.inf, -1.0])
+def test_budget_rejects_invalid_limits(tmp_path, bad_limit):
+    store = StateStore(str(tmp_path / "horizon.db"))
+    with pytest.raises(ValueError, match="limit"):
+        store.charge("p", 0.0, bad_limit)
+
+
+def test_budget_rejects_boolean_units_and_limits(tmp_path):
+    store = StateStore(str(tmp_path / "horizon.db"))
+    with pytest.raises(ValueError, match="boolean"):
+        store.charge("p", True, 1.0)
+    with pytest.raises(ValueError, match="boolean"):
+        store.charge("p", 1.0, False)
 
 
 def test_unknown_usage_helper_is_not_zeros():
