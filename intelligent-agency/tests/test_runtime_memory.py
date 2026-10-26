@@ -18,22 +18,36 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
 
 from agency.memory_context import HEADER
+from agency.model_router import FallbackBackend
 from agency.runtime import MEMORY_SCOPE, MEMORY_WINDOW, HorizonRuntime
 from agency.state import StateStore
 
 
-class RecordingHorizon:
-    """Records every prompt it is handed and answers with a cycle-specific fact."""
+class RecordingProvider:
+    """Offline provider stub used to exercise the runtime's live-response path."""
 
     def __init__(self):
         self.prompts = []
         self.last_usage = {"status": "known", "prompt_tokens": 123,
                            "completion_tokens": 45, "total_tokens": 168}
 
+    def complete(self, system_prompt, user_prompt):
+        self.prompts.append(user_prompt)
+        return f"FINDING-{len(self.prompts)}: the queue is empty"
+
+
+class RecordingHorizon:
+    """Records prompts and routes them through a deterministic provider stub."""
+
+    def __init__(self):
+        self.prompts = []
+        self.provider = RecordingProvider()
+        self.backend = FallbackBackend([("test-provider", self.provider)])
+        self.last_usage = self.provider.last_usage
+
     def advise(self, task):
         self.prompts.append(task)
-        # A fact unique to this cycle, so a later prompt can be searched for it.
-        return f"FINDING-{len(self.prompts)}: the queue is empty"
+        return self.backend.complete("test system", task)
 
 
 class BrokenStore:
