@@ -5,19 +5,19 @@ are classified and audited.
 
 Work-item kinds handled here:
 
-* ``github_review_changeset`` — published as a review branch + pull request by
-  the injected :class:`agency.github_worker.GitHubPublisher` (never merged).
-* anything else — an advisory Horizon cycle, stored as candidate memory.
+* github_review_changeset -- published as a review branch + pull request by
+  the injected GitHubPublisher (never merged).
+* anything else -- an advisory Horizon cycle, stored as candidate memory.
 
-Run it with ``python -m agency.horizon_worker_main`` (see that module) against
-the same ``HORIZON_DB_PATH`` the dashboard writes to.
+Run it with python -m agency.horizon_worker_main (see that module) against the
+same HORIZON_DB_PATH the dashboard writes to.
 """
 from __future__ import annotations
 from datetime import datetime, timezone
 import os, socket, time
 from typing import Optional
 
-from .llm import unknown_usage
+from .llm import MockBackend, unknown_usage
 from .memory_context import augment_prompt
 from .state import StateStore
 from .policy import PolicyEngine, default_engine
@@ -84,6 +84,8 @@ class DurableHorizonWorker:
             usage = getattr(self.horizon, "last_usage", None) or unknown_usage(
                 "advisor reported no usage"
             )
+            backend = getattr(self.horizon, "backend", None)
+            is_mock = isinstance(backend, MockBackend)
             self.store.record_run(
                 worker_id=self.worker_id,
                 work_item_id=item["id"],
@@ -92,25 +94,25 @@ class DurableHorizonWorker:
                 usage=usage,
                 started_at=started,
             )
-            self.policy.require("memory_remember", actor=self.worker_id)
-            self.store.remember(
-                f"work:{item['id']}",
-                "horizon/work-results",
-                {
-                    "task": task,
-                    "answer": str(answer),
-                    # Observable: did this cycle actually start from memory, or
-                    # from the same static text as the last one?
-                    "recalled_context": prompt != task,
-                    # What this run cost, as the provider reported it.
-                    "usage": usage,
-                },
-                provenance="Horizon runtime v2",
-                confidence="medium",
-                status="candidate",
-            )
+            # A mock cycle is a successful simulation, but canned output is not
+            # learning evidence and must not be written into durable memory.
+            if not is_mock:
+                self.policy.require("memory_remember", actor=self.worker_id)
+                self.store.remember(
+                    f"work:{item['id']}",
+                    "horizon/work-results",
+                    {
+                        "task": task,
+                        "answer": str(answer),
+                        "recalled_context": prompt != task,
+                        "usage": usage,
+                    },
+                    provenance="Horizon runtime v2",
+                    confidence="medium",
+                    status="candidate",
+                )
             self.store.complete(item["id"])
-            self.store.beat(self.worker_id, "ok")
+            self.store.beat(self.worker_id, "simulation" if is_mock else "ok")
             return True
         except Exception:
             self.store.fail(item["id"])
@@ -152,7 +154,7 @@ class DurableHorizonWorker:
         return True
 
     def serve_forever(self, max_cycles: Optional[int] = None):
-        """Poll the queue forever, or for ``max_cycles`` iterations when given."""
+        """Poll the queue forever, or for max_cycles iterations when given."""
         cycles = 0
         while max_cycles is None or cycles < max_cycles:
             cycles += 1
