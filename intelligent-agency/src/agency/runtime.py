@@ -1,17 +1,18 @@
 """Persistent runtime for Horizon's continuous improvement cycle.
 
-The runtime intentionally separates autonomous *work* from human-controlled
+The runtime intentionally separates autonomous work from human-controlled
 promotion. Horizon may inspect, plan, test and prepare review artifacts, but a
 runtime cycle never grants merge authority.
 
 Memory policy coverage, stated plainly: this path writes its cycle record with
-no policy engine. ``Worker`` asks ``policy.require("memory_remember", ...)``
-before writing because it holds a ``PolicyEngine``; ``HorizonRuntime`` holds
-none, so a cycle's own memory write is unchecked and unaudited by policy. It is
-a local, bounded, non-consequential write (a sqlite row in the state directory),
-and adding a real gate here would mean giving the runtime a policy engine --
-not pretending one exists.
+no policy engine. Worker asks policy.require("memory_remember", ...) before
+writing because it holds a PolicyEngine; HorizonRuntime holds none, so a cycle's
+own memory write is unchecked and unaudited by policy. It is a local, bounded,
+non-consequential write (a sqlite row in the state directory), and adding a real
+gate here would mean giving the runtime a policy engine -- not pretending one
+exists.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, asdict
@@ -21,17 +22,18 @@ import os
 import time
 from typing import Callable, Dict, List, Optional
 
+from .llm import MockBackend
 from .memory_context import augment_prompt
+from .state import StateStore
 
 # Where this class keeps its own cycle records. The worker writes its results
-# to ``horizon/work-results``; keeping the runtime's cycles in their own scope
-# keeps the two readable (and lets ``StateStore.recall(scope=...)`` be used to
-# read either one on its own).
+# to horizon/work-results; keeping the runtime's cycles in their own scope
+# keeps the two readable (and lets StateStore.recall(scope=...) read either).
 MEMORY_SCOPE = "horizon/runtime"
 # Keys are a fixed-size ring, so the runtime can never accumulate more than
 # this many memory rows however long it runs. Without a bound, a cycle every
 # four hours would push the worker's work-results out of the newest-50 window
-# that ``memory_context.select_entries`` reads.
+# that memory_context.select_entries reads.
 MEMORY_WINDOW = 5
 MAX_TASK_CHARS = 200
 MAX_ANSWER_CHARS = 600
@@ -45,6 +47,7 @@ class RuntimeEvent:
     cycle: int
     message: str
     usage: Optional[Dict] = None
+    analysis_mode: str = "unknown"
 
 
 class HorizonRuntime:
@@ -93,23 +96,18 @@ class HorizonRuntime:
         return max(numbers, default=0)
 
     def _remember_cycle(self, task: str, answer, usage: Optional[Dict]) -> None:
-        """Record this cycle so a later one can recall it. No-op without a store.
+        """Record a non-mock cycle so a later one can recall it.
 
-        The write is bounded (``MEMORY_WINDOW`` rows at most, and both fields
+        The write is bounded (MEMORY_WINDOW rows at most, and both fields
         truncated) and idempotent per cycle: the key is derived from the cycle
         number, so re-running a cycle updates one row through the UPSERT in
-        ``StateStore.remember`` instead of appending a duplicate.
+        StateStore.remember instead of appending a duplicate.
 
-        Unlike ``Worker`` this path has no policy engine to ask, so no
-        ``memory_remember`` decision is recorded here -- see the note in the
-        module docstring.
+        Mock replies are simulation output, not learning evidence. run_once
+        detects the mock backend and does not call this method for simulations.
         """
         if self.memory is None:
             return
-        # A scheduled run is one process per cycle, so ``self._cycle`` -- the
-        # audit's per-process counter -- would be 1 on every run and every
-        # record would land in the same slot. The store is the only thing that
-        # outlives a process, so the recorded cycle number is counted from it.
         cycle = self._recorded_cycles() + 1
         self.memory.remember(
             f"horizon/runtime/cycle-{cycle % MEMORY_WINDOW}",
@@ -135,17 +133,38 @@ class HorizonRuntime:
     ) -> Dict[str, str]:
         self._cycle += 1
         started = self._now()
+        analysis_mode = "unknown"
         try:
             prompt = augment_prompt(task, self.memory, project=project, tags=tags or ())
             answer = self.horizon.advise(prompt)
             usage = getattr(self.horizon, "last_usage", None)
-            self._remember_cycle(task, answer, usage if isinstance(usage, dict) else None)
-            event = RuntimeEvent(started, self._now(), "ok", self._cycle, str(answer),
-                                 usage if isinstance(usage, dict) else None)
+            backend = getattr(self.horizon, "backend", None)
+            if isinstance(backend, MockBackend):
+                analysis_mode = "simulation"
+            elif backend is not None:
+                analysis_mode = "live"
+
+            # Preserve workflow success as status=ok, but never treat canned
+            # mock output as durable learning or feed it into later prompts.
+            if analysis_mode != "simulation":
+                self._remember_cycle(task, answer, usage if isinstance(usage, dict) else None)
+
+            event = RuntimeEvent(
+                started, self._now(), "ok", self._cycle, str(answer),
+                usage if isinstance(usage, dict) else None, analysis_mode,
+            )
             self._append(event)
-            return {"status": "ok", "answer": str(answer), "cycle": str(self._cycle)}
+            return {
+                "status": "ok",
+                "analysis_mode": analysis_mode,
+                "answer": str(answer),
+                "cycle": str(self._cycle),
+            }
         except Exception as exc:
-            event = RuntimeEvent(started, self._now(), "error", self._cycle, repr(exc))
+            event = RuntimeEvent(
+                started, self._now(), "error", self._cycle, repr(exc),
+                analysis_mode=analysis_mode,
+            )
             self._append(event)
             raise
 
