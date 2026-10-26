@@ -22,18 +22,12 @@ import os
 import time
 from typing import Callable, Dict, List, Optional
 
-from .llm import MockBackend
+from .llm import MockBackend, OpenAICompatibleBackend
 from .memory_context import augment_prompt
+from .model_router import FallbackBackend
 from .state import StateStore
 
-# Where this class keeps its own cycle records. The worker writes its results
-# to horizon/work-results; keeping the runtime's cycles in their own scope
-# keeps the two readable (and lets StateStore.recall(scope=...) read either).
 MEMORY_SCOPE = "horizon/runtime"
-# Keys are a fixed-size ring, so the runtime can never accumulate more than
-# this many memory rows however long it runs. Without a bound, a cycle every
-# four hours would push the worker's work-results out of the newest-50 window
-# that memory_context.select_entries reads.
 MEMORY_WINDOW = 5
 MAX_TASK_CHARS = 200
 MAX_ANSWER_CHARS = 600
@@ -64,8 +58,6 @@ class HorizonRuntime:
         if interval_seconds < 60:
             raise ValueError("interval_seconds must be at least 60 seconds")
         self.horizon = horizon
-        # Optional StateStore: when present, a cycle starts from what earlier
-        # cycles remembered instead of from the same static text every time.
         self.memory = memory
         self.interval_seconds = interval_seconds
         self.max_backoff_seconds = max_backoff_seconds
@@ -98,13 +90,9 @@ class HorizonRuntime:
     def _remember_cycle(self, task: str, answer, usage: Optional[Dict]) -> None:
         """Record a non-mock cycle so a later one can recall it.
 
-        The write is bounded (MEMORY_WINDOW rows at most, and both fields
-        truncated) and idempotent per cycle: the key is derived from the cycle
-        number, so re-running a cycle updates one row through the UPSERT in
-        StateStore.remember instead of appending a duplicate.
-
-        Mock replies are simulation output, not learning evidence. run_once
-        detects the mock backend and does not call this method for simulations.
+        The write is bounded and idempotent per cycle. Mock replies are
+        simulation output, not learning evidence, so run_once does not call this
+        method for a mock backend.
         """
         if self.memory is None:
             return
@@ -124,6 +112,17 @@ class HorizonRuntime:
             status="candidate",
         )
 
+    def _analysis_mode(self) -> str:
+        """Identify only known provider types; unknown adapters are not called live."""
+        backend = getattr(self.horizon, "backend", None)
+        if isinstance(backend, MockBackend):
+            return "simulation"
+        if type(backend) is OpenAICompatibleBackend:
+            return "live"
+        if isinstance(backend, FallbackBackend) and backend.last_provider:
+            return "live"
+        return "unknown"
+
     def run_once(
         self,
         task: str = "Run the continuous improvement cycle",
@@ -138,11 +137,7 @@ class HorizonRuntime:
             prompt = augment_prompt(task, self.memory, project=project, tags=tags or ())
             answer = self.horizon.advise(prompt)
             usage = getattr(self.horizon, "last_usage", None)
-            backend = getattr(self.horizon, "backend", None)
-            if isinstance(backend, MockBackend):
-                analysis_mode = "simulation"
-            elif backend is not None:
-                analysis_mode = "live"
+            analysis_mode = self._analysis_mode()
 
             # Preserve workflow success as status=ok, but never treat canned
             # mock output as durable learning or feed it into later prompts.
