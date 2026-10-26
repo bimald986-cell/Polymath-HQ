@@ -32,6 +32,24 @@ jobs:
       - name: Run tests before Horizon cycle
         run: pytest -q
 
+      # Artifacts are read-only to later runs, so the state dir is carried
+      # between runs by the cache instead. A cache entry is immutable per exact
+      # key, so the key must be unique per run (run_id + attempt) or the save
+      # would be skipped; `restore-keys` then matches every earlier key with the
+      # `horizon-state-` prefix, and GitHub restores the *most recently created*
+      # match -- i.e. the newest previous state. So: restore by prefix, save by
+      # unique key, and the next run always finds the newest state. A miss
+      # (first run, or eviction after 7 idle days) simply starts empty.
+      # Cache keys are scoped to this branch by default, and this workflow only
+      # runs on the default branch (schedule/dispatch), so runs see each other.
+      - name: Restore Horizon state
+        uses: actions/cache@v4
+        with:
+          path: intelligent-agency/.horizon
+          key: horizon-state-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            horizon-state-
+
       - name: Run Horizon cycle
         env:
           HORIZON_STATE_DIR: .horizon
@@ -44,19 +62,30 @@ jobs:
           AGENCY_LLM_API_KEY: ${{ secrets.AGENCY_LLM_API_KEY }}
         run: |
           python - <<'PY'
+          import os
           import sys
           sys.path.insert(0, 'src')
           from agency import build_agency
           from agency.runtime import HorizonRuntime
+          from agency.state import StateStore
 
           p = build_agency()
-          runtime = HorizonRuntime(p.advisor, interval_seconds=14400)
+          # The step already sets HORIZON_STATE_DIR=.horizon; the store lives in
+          # the same directory so one cache entry carries both the audit trail
+          # and the memory. With a store, a cycle recalls what earlier cycles
+          # recorded and records its own outcome for the next one.
+          state_dir = os.environ.get('HORIZON_STATE_DIR', '.horizon')
+          store = StateStore(os.path.join(state_dir, 'horizon.db'))
+          print('memory rows on entry:', len(store.recall(limit=50)))
+          runtime = HorizonRuntime(p.advisor, interval_seconds=14400,
+                                   state_dir=state_dir, memory=store)
           result = runtime.run_once(
               'Run a scheduled HQ improvement scan. Inspect currently available HQ context, '
               'identify the highest-value verified improvement, and produce an auditable '
               'recommendation. Prefer registered projects in core/projects.yaml when relevant. '
               'Do not merge or perform consequential external actions.'
           )
+          print('memory rows on exit:', len(store.recall(limit=50)))
           print(result)
           PY
 

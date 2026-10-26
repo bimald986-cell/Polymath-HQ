@@ -3,6 +3,14 @@
 The runtime intentionally separates autonomous *work* from human-controlled
 promotion. Horizon may inspect, plan, test and prepare review artifacts, but a
 runtime cycle never grants merge authority.
+
+Memory policy coverage, stated plainly: this path writes its cycle record with
+no policy engine. ``Worker`` asks ``policy.require("memory_remember", ...)``
+before writing because it holds a ``PolicyEngine``; ``HorizonRuntime`` holds
+none, so a cycle's own memory write is unchecked and unaudited by policy. It is
+a local, bounded, non-consequential write (a sqlite row in the state directory),
+and adding a real gate here would mean giving the runtime a policy engine --
+not pretending one exists.
 """
 from __future__ import annotations
 
@@ -14,6 +22,19 @@ import time
 from typing import Callable, Dict, List, Optional
 
 from .memory_context import augment_prompt
+
+# Where this class keeps its own cycle records. The worker writes its results
+# to ``horizon/work-results``; keeping the runtime's cycles in their own scope
+# keeps the two readable (and lets ``StateStore.recall(scope=...)`` be used to
+# read either one on its own).
+MEMORY_SCOPE = "horizon/runtime"
+# Keys are a fixed-size ring, so the runtime can never accumulate more than
+# this many memory rows however long it runs. Without a bound, a cycle every
+# four hours would push the worker's work-results out of the newest-50 window
+# that ``memory_context.select_entries`` reads.
+MEMORY_WINDOW = 5
+MAX_TASK_CHARS = 200
+MAX_ANSWER_CHARS = 600
 
 
 @dataclass
@@ -58,6 +79,53 @@ class HorizonRuntime:
         with open(self.audit_path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(asdict(event), sort_keys=True) + "\n")
 
+    def _recorded_cycles(self) -> int:
+        """Highest cycle number already recorded in the store, or 0."""
+        if self.memory is None:
+            return 0
+        rows = self.memory.recall(scope=MEMORY_SCOPE, limit=MEMORY_WINDOW) or []
+        numbers = []
+        for row in rows:
+            value = row.get("value")
+            number = value.get("cycle") if isinstance(value, dict) else None
+            if isinstance(number, int) and not isinstance(number, bool):
+                numbers.append(number)
+        return max(numbers, default=0)
+
+    def _remember_cycle(self, task: str, answer, usage: Optional[Dict]) -> None:
+        """Record this cycle so a later one can recall it. No-op without a store.
+
+        The write is bounded (``MEMORY_WINDOW`` rows at most, and both fields
+        truncated) and idempotent per cycle: the key is derived from the cycle
+        number, so re-running a cycle updates one row through the UPSERT in
+        ``StateStore.remember`` instead of appending a duplicate.
+
+        Unlike ``Worker`` this path has no policy engine to ask, so no
+        ``memory_remember`` decision is recorded here -- see the note in the
+        module docstring.
+        """
+        if self.memory is None:
+            return
+        # A scheduled run is one process per cycle, so ``self._cycle`` -- the
+        # audit's per-process counter -- would be 1 on every run and every
+        # record would land in the same slot. The store is the only thing that
+        # outlives a process, so the recorded cycle number is counted from it.
+        cycle = self._recorded_cycles() + 1
+        self.memory.remember(
+            f"horizon/runtime/cycle-{cycle % MEMORY_WINDOW}",
+            MEMORY_SCOPE,
+            {
+                "task": task[:MAX_TASK_CHARS],
+                "answer": str(answer)[:MAX_ANSWER_CHARS],
+                "usage": usage,
+                "cycle": cycle,
+                "finished_at": self._now(),
+            },
+            provenance="Horizon runtime cycle",
+            confidence="medium",
+            status="candidate",
+        )
+
     def run_once(
         self,
         task: str = "Run the continuous improvement cycle",
@@ -71,6 +139,7 @@ class HorizonRuntime:
             prompt = augment_prompt(task, self.memory, project=project, tags=tags or ())
             answer = self.horizon.advise(prompt)
             usage = getattr(self.horizon, "last_usage", None)
+            self._remember_cycle(task, answer, usage if isinstance(usage, dict) else None)
             event = RuntimeEvent(started, self._now(), "ok", self._cycle, str(answer),
                                  usage if isinstance(usage, dict) else None)
             self._append(event)
