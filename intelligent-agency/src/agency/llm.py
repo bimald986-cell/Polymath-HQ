@@ -20,17 +20,91 @@ default; see ``docs/POLICY_ENGINE.md``.
 from __future__ import annotations
 
 import os
-from typing import Protocol
+from typing import Any, Dict, Protocol
+
+
+def unknown_usage(note: str = "provider response carried no usage envelope") -> Dict[str, Any]:
+    """An explicit "we do not know" usage record.
+
+    Token counts are ``None``, never ``0``: a zero would read as a free run and
+    silently understate cost, which is the failure mode this is meant to end.
+    """
+    return {
+        "status": "unknown",
+        "prompt_tokens": None,
+        "completion_tokens": None,
+        "total_tokens": None,
+        "note": note,
+    }
+
+
+def _token(usage: Dict[str, Any], *names: str):
+    """Return a valid non-negative integer token count, or None if absent/invalid."""
+    for name in names:
+        if name not in usage:
+            continue
+        value = usage[name]
+        # Token counts are integers. Reject booleans, floats, strings and
+        # negative values instead of silently truncating or accepting them.
+        if type(value) is int and value >= 0:
+            return value
+        return None
+    return None
+
+
+def extract_usage(data: Any) -> Dict[str, Any]:
+    """Read the token counts out of a provider response.
+
+    OpenAI-compatible endpoints report ``usage.prompt_tokens`` /
+    ``usage.completion_tokens`` / ``usage.total_tokens``; some compatible
+    gateways use the ``input_tokens`` / ``output_tokens`` aliases. Both are
+    accepted. A response with no ``usage`` object yields :func:`unknown_usage`
+    instead of raising or inventing zeros.
+    """
+    usage = data.get("usage") if isinstance(data, dict) else None
+    if not isinstance(usage, dict):
+        return unknown_usage()
+    count_fields = (
+        "prompt_tokens", "input_tokens",
+        "completion_tokens", "output_tokens", "total_tokens",
+    )
+    if any(
+        name in usage and (type(usage[name]) is not int or usage[name] < 0)
+        for name in count_fields
+    ):
+        return unknown_usage("provider usage envelope contained invalid token counts")
+    prompt_tokens = _token(usage, "prompt_tokens", "input_tokens")
+    completion_tokens = _token(usage, "completion_tokens", "output_tokens")
+    if prompt_tokens is None and completion_tokens is None:
+        return unknown_usage("provider usage envelope had no recognisable token counts")
+    total_tokens = _token(usage, "total_tokens")
+    if total_tokens is None and prompt_tokens is not None and completion_tokens is not None:
+        total_tokens = prompt_tokens + completion_tokens
+    return {
+        "status": "known",
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+        "note": "",
+    }
 
 
 class LLMBackend(Protocol):
+    #: Usage of the most recent ``complete()`` call, as :func:`extract_usage`
+    #: returns it. Backends that cannot report it must say "unknown".
+    last_usage: Dict[str, Any]
+
     def complete(self, system_prompt: str, user_prompt: str) -> str: ...
 
 
 class MockBackend:
     """Deterministic, offline backend. Explains what the agent *would* do."""
 
+    def __init__(self):
+        self.last_usage = unknown_usage("mock backend performs no metered work")
+
     def complete(self, system_prompt: str, user_prompt: str) -> str:
+        self.last_usage = unknown_usage("mock backend performs no metered work")
         persona = system_prompt.strip().splitlines()[0] if system_prompt else "Agent"
         return (
             f"[mock reply] {persona}\n"
@@ -46,18 +120,17 @@ class OpenAICompatibleBackend:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.model = model
+        self.last_usage: Dict[str, Any] = unknown_usage("no call made yet")
 
-    def complete(self, system_prompt: str, user_prompt: str) -> str:
+    def _request(self, payload: bytes) -> Dict[str, Any]:
+        """POST the payload and return the decoded response body.
+
+        Split out so tests can exercise the response handling -- including the
+        ``usage`` envelope -- without a network call or a real provider.
+        """
         import json
         import urllib.request
 
-        payload = json.dumps({
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-        }).encode()
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions",
             data=payload,
@@ -68,7 +141,20 @@ class OpenAICompatibleBackend:
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=60) as resp:
-            data = json.loads(resp.read().decode())
+            return json.loads(resp.read().decode())
+
+    def complete(self, system_prompt: str, user_prompt: str) -> str:
+        import json
+
+        payload = json.dumps({
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        }).encode()
+        data = self._request(payload)
+        self.last_usage = extract_usage(data)
         return data["choices"][0]["message"]["content"]
 
 

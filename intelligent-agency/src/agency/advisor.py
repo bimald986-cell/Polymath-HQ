@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from .base import Node, Role
-from .llm import LLMBackend, get_backend
+from .llm import LLMBackend, get_backend, unknown_usage
 from .policy import PolicyEngine, default_engine
 
 
@@ -89,6 +89,16 @@ class PresidentAdvisor(Node):
 
     def advise(self, topic: str) -> str:
         return self.backend.complete(self.system_prompt, topic)
+
+    @property
+    def last_usage(self) -> Dict[str, Any]:
+        """Token usage of the most recent ``advise()`` call.
+
+        ``{"status": "unknown", ...}`` when the provider reported nothing --
+        never zeros, which would read as a free run.
+        """
+        usage = getattr(self.backend, "last_usage", None)
+        return dict(usage) if isinstance(usage, dict) else unknown_usage()
 
     def permissions(self) -> Dict[str, bool]:
         return dict(self.authority.__dict__)

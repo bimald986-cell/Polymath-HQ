@@ -1,6 +1,6 @@
 """Durable local state for unattended Horizon workers."""
 from __future__ import annotations
-import json, sqlite3, time
+import json, math, sqlite3, time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -27,6 +27,10 @@ class StateStore:
           worker_id TEXT PRIMARY KEY, seen_at REAL NOT NULL, details TEXT);
         CREATE TABLE IF NOT EXISTS budget(
           period TEXT PRIMARY KEY, units REAL NOT NULL DEFAULT 0, updated_at REAL NOT NULL);
+        CREATE TABLE IF NOT EXISTS runs(
+          id INTEGER PRIMARY KEY AUTOINCREMENT, worker_id TEXT, work_item_id INTEGER,
+          kind TEXT, status TEXT NOT NULL, usage TEXT NOT NULL,
+          started_at REAL NOT NULL, finished_at REAL NOT NULL, error TEXT);
         """)
         self.db.commit()
 
@@ -78,6 +82,59 @@ class StateStore:
         self.db.execute("INSERT INTO heartbeat(worker_id,seen_at,details) VALUES(?,?,?) ON CONFLICT(worker_id) DO UPDATE SET seen_at=excluded.seen_at,details=excluded.details", (worker_id,time.time(),details)); self.db.commit()
 
     def charge(self, period: str, units: float, limit: float) -> bool:
-        row=self.db.execute("SELECT units FROM budget WHERE period=?",(period,)).fetchone(); used=float(row['units']) if row else 0.0
-        if used + units > limit: return False
-        now=time.time(); self.db.execute("INSERT INTO budget(period,units,updated_at) VALUES(?,?,?) ON CONFLICT(period) DO UPDATE SET units=units+excluded.units,updated_at=excluded.updated_at",(period,units,now)); self.db.commit(); return True
+        """Reserve ``units`` against ``period`` atomically.
+
+        The previous implementation read the used total, compared it, then
+        wrote -- so two workers could both pass the check and both spend the
+        last unit. The reserve is now one UPSERT carrying the limit in its
+        WHERE clause: SQLite applies it atomically, and ``rowcount`` reports
+        whether the unit was actually taken.
+        """
+        if isinstance(units, bool) or isinstance(limit, bool):
+            raise ValueError("budget units and limit must be numeric, not boolean")
+        try:
+            units = float(units)
+            limit = float(limit)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("budget units and limit must be finite numbers") from exc
+        if not math.isfinite(units) or units < 0:
+            raise ValueError("budget units must be finite and non-negative")
+        if not math.isfinite(limit) or limit < 0:
+            raise ValueError("budget limit must be finite and non-negative")
+        if units > limit:
+            return False
+        cur = self.db.execute(
+            "INSERT INTO budget(period,units,updated_at) VALUES(?,?,?) "
+            "ON CONFLICT(period) DO UPDATE SET units=budget.units+excluded.units,"
+            "updated_at=excluded.updated_at "
+            "WHERE budget.units+excluded.units<=?",
+            (period, units, time.time(), float(limit)),
+        )
+        self.db.commit()
+        return cur.rowcount == 1
+
+    def record_run(self, *, worker_id: str, kind: str, usage: Dict[str, Any],
+                   work_item_id: Optional[int] = None, status: str = 'ok',
+                   error: str = '', started_at: Optional[float] = None,
+                   finished_at: Optional[float] = None) -> int:
+        """Persist one run with the usage the provider reported for it.
+
+        ``usage`` is stored verbatim, so an unknown cost stays visibly unknown
+        (``status: "unknown"``) instead of reading as a free run.
+        """
+        now = time.time()
+        cur = self.db.execute(
+            "INSERT INTO runs(worker_id,work_item_id,kind,status,usage,started_at,finished_at,error)"
+            " VALUES(?,?,?,?,?,?,?,?)",
+            (worker_id, work_item_id, kind, status, json.dumps(usage, sort_keys=True),
+             started_at if started_at is not None else now, finished_at or now, error),
+        )
+        self.db.commit()
+        return int(cur.lastrowid)
+
+    def recent_runs(self, limit: int = 20) -> List[dict]:
+        rows = self.db.execute("SELECT * FROM runs ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+        out = []
+        for r in rows:
+            x = dict(r); x['usage'] = json.loads(x['usage']); out.append(x)
+        return out
