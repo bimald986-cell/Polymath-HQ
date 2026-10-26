@@ -88,7 +88,7 @@ class HorizonRuntime:
         return max(numbers, default=0)
 
     def _remember_cycle(self, task: str, answer, usage: Optional[Dict]) -> None:
-        """Record a non-mock cycle so a later one can recall it.
+        """Record a confirmed live-provider cycle so a later one can recall it.
 
         The write is bounded and idempotent per cycle. Mock replies are
         simulation output, not learning evidence, so run_once does not call this
@@ -141,7 +141,7 @@ class HorizonRuntime:
 
             # Preserve workflow success as status=ok, but never treat canned
             # mock output as durable learning or feed it into later prompts.
-            if analysis_mode != "simulation":
+            if analysis_mode == "live":
                 self._remember_cycle(task, answer, usage if isinstance(usage, dict) else None)
 
             event = RuntimeEvent(
