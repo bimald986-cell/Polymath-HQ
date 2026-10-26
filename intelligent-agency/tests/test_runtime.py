@@ -54,6 +54,21 @@ def test_mock_runtime_is_labelled_simulation_without_learning_from_canned_text(t
     assert event["analysis_mode"] == "simulation"
 
 
+def test_unknown_adapter_does_not_write_learning_memory(tmp_path):
+    store = StateStore(str(tmp_path / "horizon.db"))
+    runtime = HorizonRuntime(
+        FakeHorizon(),
+        interval_seconds=60,
+        state_dir=str(tmp_path / "state"),
+        memory=store,
+    )
+
+    result = runtime.run_once("scan")
+
+    assert result["analysis_mode"] == "unknown"
+    assert store.recall(scope="horizon/runtime") == []
+
+
 def test_runtime_records_failures(tmp_path):
     runtime = HorizonRuntime(BrokenHorizon(), interval_seconds=60, state_dir=str(tmp_path))
     with pytest.raises(RuntimeError):
