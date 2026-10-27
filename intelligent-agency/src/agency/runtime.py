@@ -113,14 +113,22 @@ class HorizonRuntime:
         )
 
     def _analysis_mode(self) -> str:
-        """Identify only known provider types; unknown adapters are not called live."""
+        """Classify the backend that actually answered, not just its router name."""
         backend = getattr(self.horizon, "backend", None)
         if isinstance(backend, MockBackend):
             return "simulation"
         if type(backend) is OpenAICompatibleBackend:
             return "live"
         if isinstance(backend, FallbackBackend) and backend.last_provider:
-            return "live"
+            selected = next(
+                (candidate for name, candidate in backend.backends
+                 if name == backend.last_provider),
+                None,
+            )
+            if isinstance(selected, MockBackend):
+                return "simulation"
+            if type(selected) is OpenAICompatibleBackend:
+                return "live"
         return "unknown"
 
     def run_once(
@@ -163,28 +171,29 @@ class HorizonRuntime:
             self._append(event)
             raise
 
-    def serve_forever(
-        self,
-        task: str = "Run the continuous improvement cycle",
-        sleep: Callable[[float], None] = time.sleep,
-    ) -> None:
-        """Run forever, surviving transient failures with bounded backoff."""
-        failures = 0
-        while True:
+    def serve_forever(self, max_cycles: Optional[int] = None):
+        """Poll the runtime forever, or for max_cycles iterations when given."""
+        cycles = 0
+        backoff = self.interval_seconds
+        while max_cycles is None or cycles < max_cycles:
+            cycles += 1
             try:
-                self.run_once(task)
-                failures = 0
-                sleep(self.interval_seconds)
-            except KeyboardInterrupt:
-                raise
+                self.run_once()
+                backoff = self.interval_seconds
             except Exception:
-                failures += 1
-                backoff = min(self.interval_seconds * (2 ** min(failures, 6)), self.max_backoff_seconds)
-                sleep(backoff)
+                backoff = min(max(backoff * 2, self.interval_seconds), self.max_backoff_seconds)
+            if max_cycles is None or cycles < max_cycles:
+                time.sleep(backoff)
 
-    def recent_events(self, limit: int = 20) -> List[dict]:
+    def recent_events(self, limit: int = 20) -> List[Dict]:
         if not os.path.exists(self.audit_path):
             return []
-        with open(self.audit_path, "r", encoding="utf-8") as fh:
-            lines = fh.readlines()[-limit:]
-        return [json.loads(line) for line in lines if line.strip()]
+        with open(self.audit_path, encoding="utf-8") as fh:
+            lines = fh.readlines()[-max(0, limit):]
+        events = []
+        for line in lines:
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+        return events
