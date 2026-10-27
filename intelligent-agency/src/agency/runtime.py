@@ -171,29 +171,28 @@ class HorizonRuntime:
             self._append(event)
             raise
 
-    def serve_forever(self, max_cycles: Optional[int] = None):
-        """Poll the runtime forever, or for max_cycles iterations when given."""
-        cycles = 0
-        backoff = self.interval_seconds
-        while max_cycles is None or cycles < max_cycles:
-            cycles += 1
+    def serve_forever(
+        self,
+        task: str = "Run the continuous improvement cycle",
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
+        """Run forever, surviving transient failures with bounded backoff."""
+        failures = 0
+        while True:
             try:
-                self.run_once()
-                backoff = self.interval_seconds
+                self.run_once(task)
+                failures = 0
+                sleep(self.interval_seconds)
+            except KeyboardInterrupt:
+                raise
             except Exception:
-                backoff = min(max(backoff * 2, self.interval_seconds), self.max_backoff_seconds)
-            if max_cycles is None or cycles < max_cycles:
-                time.sleep(backoff)
+                failures += 1
+                backoff = min(self.interval_seconds * (2 ** min(failures, 6)), self.max_backoff_seconds)
+                sleep(backoff)
 
-    def recent_events(self, limit: int = 20) -> List[Dict]:
+    def recent_events(self, limit: int = 20) -> List[dict]:
         if not os.path.exists(self.audit_path):
             return []
-        with open(self.audit_path, encoding="utf-8") as fh:
-            lines = fh.readlines()[-max(0, limit):]
-        events = []
-        for line in lines:
-            try:
-                events.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-        return events
+        with open(self.audit_path, "r", encoding="utf-8") as fh:
+            lines = fh.readlines()[-limit:]
+        return [json.loads(line) for line in lines if line.strip()]
