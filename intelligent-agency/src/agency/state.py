@@ -29,9 +29,19 @@ class StateStore:
           period TEXT PRIMARY KEY, units REAL NOT NULL DEFAULT 0, updated_at REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS runs(
           id INTEGER PRIMARY KEY AUTOINCREMENT, worker_id TEXT, work_item_id INTEGER,
-          kind TEXT, status TEXT NOT NULL, usage TEXT NOT NULL,
+          kind TEXT, status TEXT NOT NULL, usage TEXT NOT NULL, cost TEXT,
           started_at REAL NOT NULL, finished_at REAL NOT NULL, error TEXT);
         """)
+        # A ``runs`` table created before costing existed has no ``cost`` column,
+        # and the scheduled cycle restores such a database from the actions
+        # cache. ``CREATE TABLE IF NOT EXISTS`` is a no-op on it, so the column
+        # is added explicitly. Existing rows keep ``cost`` NULL, which
+        # ``recent_runs`` reports as None -- an old run is not retrospectively
+        # priced, because its cost was never recorded.
+        run_columns = {row["name"] for row in
+                       self.db.execute("PRAGMA table_info(runs)").fetchall()}
+        if "cost" not in run_columns:
+            self.db.execute("ALTER TABLE runs ADD COLUMN cost TEXT")
         self.db.commit()
 
     def enqueue(self, kind: str, payload: Dict[str, Any], priority: int = 100, delay_seconds: int = 0) -> int:
@@ -113,20 +123,38 @@ class StateStore:
         self.db.commit()
         return cur.rowcount == 1
 
+    #: What a run whose caller computed no cost is stored as. Deliberately not
+    #: zeros: nobody looked, which is a different fact from "it was free".
+    UNCALCULATED_COST = {
+        "status": "unknown",
+        "amount": None,
+        "amount_pico": None,
+        "currency": None,
+        "note": "no cost was computed for this run",
+    }
+
     def record_run(self, *, worker_id: str, kind: str, usage: Dict[str, Any],
+                   cost: Optional[Dict[str, Any]] = None,
                    work_item_id: Optional[int] = None, status: str = 'ok',
                    error: str = '', started_at: Optional[float] = None,
                    finished_at: Optional[float] = None) -> int:
-        """Persist one run with the usage the provider reported for it.
+        """Persist one run with the usage the provider reported and what it cost.
 
         ``usage`` is stored verbatim, so an unknown cost stays visibly unknown
         (``status: "unknown"``) instead of reading as a free run.
+
+        ``cost`` is the block :func:`agency.pricing.cost_for_run` computed for
+        this run. It is stored, never recomputed on read: a later change to a
+        rate must not rewrite what an already-recorded cycle cost. A caller
+        that passes nothing gets :attr:`UNCALCULATED_COST`, not silence.
         """
         now = time.time()
+        stored_cost = cost if isinstance(cost, dict) else dict(self.UNCALCULATED_COST)
         cur = self.db.execute(
-            "INSERT INTO runs(worker_id,work_item_id,kind,status,usage,started_at,finished_at,error)"
-            " VALUES(?,?,?,?,?,?,?,?)",
+            "INSERT INTO runs(worker_id,work_item_id,kind,status,usage,cost,started_at,finished_at,error)"
+            " VALUES(?,?,?,?,?,?,?,?,?)",
             (worker_id, work_item_id, kind, status, json.dumps(usage, sort_keys=True),
+             json.dumps(stored_cost, sort_keys=True),
              started_at if started_at is not None else now, finished_at or now, error),
         )
         self.db.commit()
@@ -136,5 +164,9 @@ class StateStore:
         rows = self.db.execute("SELECT * FROM runs ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
         out = []
         for r in rows:
-            x = dict(r); x['usage'] = json.loads(x['usage']); out.append(x)
+            x = dict(r); x['usage'] = json.loads(x['usage'])
+            # NULL only for runs recorded before costing existed (see the
+            # migration in __init__) -- reported as None, never as zero.
+            x['cost'] = json.loads(x['cost']) if x.get('cost') else None
+            out.append(x)
         return out

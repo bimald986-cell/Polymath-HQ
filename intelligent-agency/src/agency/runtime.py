@@ -21,7 +21,9 @@ import os
 import time
 from typing import Callable, Dict, List, Optional
 
+from .llm import unknown_usage
 from .memory_context import augment_prompt
+from .pricing import cost_for_run, load_price_table_safely
 
 # Where this class keeps its own cycle records. The worker writes its results
 # to ``horizon/work-results``; keeping the runtime's cycles in their own scope
@@ -45,6 +47,10 @@ class RuntimeEvent:
     cycle: int
     message: str
     usage: Optional[Dict] = None
+    # What this cycle cost, priced at record time from the committed price
+    # table. ``{"status": "unknown", "note": ...}`` when it could not be
+    # priced -- never zeros, and never recomputed later.
+    cost: Optional[Dict] = None
 
 
 class HorizonRuntime:
@@ -57,6 +63,7 @@ class HorizonRuntime:
         state_dir: Optional[str] = None,
         max_backoff_seconds: int = 21600,
         memory=None,
+        price_table=None,
     ):
         if interval_seconds < 60:
             raise ValueError("interval_seconds must be at least 60 seconds")
@@ -64,6 +71,13 @@ class HorizonRuntime:
         # Optional StateStore: when present, a cycle starts from what earlier
         # cycles remembered instead of from the same static text every time.
         self.memory = memory
+        # The rate table is read once per runtime. A malformed or missing table
+        # is carried as an error string so every cycle records an unknown cost
+        # with that reason instead of the cycle failing to start.
+        if price_table is None:
+            self.price_table, self.price_table_error = load_price_table_safely()
+        else:
+            self.price_table, self.price_table_error = price_table, None
         self.interval_seconds = interval_seconds
         self.max_backoff_seconds = max_backoff_seconds
         self.state_dir = state_dir or os.getenv("HORIZON_STATE_DIR", ".horizon")
@@ -126,6 +140,32 @@ class HorizonRuntime:
             status="candidate",
         )
 
+    def _record_run(self, started_ts: float, usage: Optional[Dict],
+                    cost: Optional[Dict]) -> None:
+        """Write this cycle to the store's ``runs`` table, cost included.
+
+        No-op without a store. The cost is stored on the row and never
+        recomputed, so ``StateStore.recent_runs()`` reports what a cycle cost
+        at the time it ran -- and, in the scheduled workflow, the uploaded
+        ``.horizon/`` artifact carries that row.
+
+        It is deliberately *not* added to the memory row: memory is rendered
+        into the next cycle's prompt under a 240-character-per-entry budget
+        (``memory_context.MAX_ENTRY_CHARS``), and a cost block there would
+        crowd out the finding the next cycle is supposed to learn from.
+        """
+        if self.memory is None:
+            return
+        self.memory.record_run(
+            worker_id="horizon-runtime",
+            kind="horizon_runtime_cycle",
+            status="ok",
+            usage=usage if usage is not None else unknown_usage("advisor reported no usage"),
+            cost=cost,
+            started_at=started_ts,
+            finished_at=time.time(),
+        )
+
     def run_once(
         self,
         task: str = "Run the continuous improvement cycle",
@@ -135,16 +175,31 @@ class HorizonRuntime:
     ) -> Dict[str, str]:
         self._cycle += 1
         started = self._now()
+        started_ts = time.time()
         try:
             prompt = augment_prompt(task, self.memory, project=project, tags=tags or ())
             answer = self.horizon.advise(prompt)
             usage = getattr(self.horizon, "last_usage", None)
-            self._remember_cycle(task, answer, usage if isinstance(usage, dict) else None)
+            usage = usage if isinstance(usage, dict) else None
+            # Priced now, from the rate in force on this cycle's date, and
+            # written into the audit line: the artifact then says what the
+            # cycle cost rather than only that it ran.
+            cost = cost_for_run(
+                usage,
+                model=getattr(self.horizon, "model", None),
+                table=self.price_table,
+                table_error=self.price_table_error,
+                at=datetime.fromtimestamp(started_ts, timezone.utc),
+            )
+            self._remember_cycle(task, answer, usage)
+            self._record_run(started_ts, usage, cost)
             event = RuntimeEvent(started, self._now(), "ok", self._cycle, str(answer),
-                                 usage if isinstance(usage, dict) else None)
+                                 usage, cost)
             self._append(event)
             return {"status": "ok", "answer": str(answer), "cycle": str(self._cycle)}
         except Exception as exc:
+            # No cost is attached to a failed cycle: the provider's usage for a
+            # call that raised was never observed, so there is nothing to price.
             event = RuntimeEvent(started, self._now(), "error", self._cycle, repr(exc))
             self._append(event)
             raise

@@ -53,6 +53,10 @@ jobs:
       - name: Run Horizon cycle
         env:
           HORIZON_STATE_DIR: .horizon
+          # Where the committed rate table lives. A path, not a secret: rates are
+          # not secret, and with no entry for the configured model the cycle
+          # records an unknown cost instead of a made-up one.
+          HORIZON_PRICE_TABLE: config/prices.yaml
           # Prefer a real provider when repository variables/secrets are set.
           # If nothing is configured, fall back to mock so the scheduled cycle
           # keeps running instead of failing with exit 2.
