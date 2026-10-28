@@ -4,6 +4,8 @@
 Environment:
   HORIZON_INTERVAL_SECONDS  cycle interval, default 3600
   HORIZON_STATE_DIR         durable runtime state directory, default .horizon
+  HORIZON_PRICE_TABLE       rate table that prices each cycle, default
+                            intelligent-agency/config/prices.yaml
   HORIZON_TASK              standing instruction for each cycle
 """
 from __future__ import annotations

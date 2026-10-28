@@ -20,6 +20,14 @@ class FallbackBackend:
         self.last_provider: str | None = None
         # Usage of the provider that actually answered; "unknown" until one does.
         self.last_usage: Dict[str, Any] = unknown_usage("no provider has answered yet")
+        # The model string of that provider, so a run can be priced by the
+        # exact name that served it rather than the first configured one.
+        self.last_model: str | None = None
+
+    @property
+    def model(self) -> str | None:
+        """The model that answered most recently, if the provider names one."""
+        return self.last_model
 
     def complete(self, system_prompt: str, user_prompt: str) -> str:
         failures = []
@@ -31,6 +39,8 @@ class FallbackBackend:
                     raise ValueError("Provider returned an empty response")
                 self.last_provider = name
                 self.last_usage = getattr(backend, "last_usage", None) or unknown_usage()
+                model = getattr(backend, "model", None)
+                self.last_model = model if isinstance(model, str) and model.strip() else None
                 logger.info("LLM provider succeeded: %s", name)
                 return result
             except Exception as exc:
