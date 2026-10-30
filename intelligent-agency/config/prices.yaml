@@ -31,7 +31,8 @@
 #     cost = (prompt_tokens * input_per_mtok + completion_tokens *
 #     output_per_mtok) / 1e6, computed exactly and stored as an integer number
 #     of 1e-12 currency units. Quote rates ("0.15") so they are read as the
-#     decimal you wrote; at most 6 decimal places.
+#     decimal you wrote; at most 6 decimal places and at most 18 whole-number
+#     digits are accepted.
 #   * `currency` is recorded on the run but never converted. Two providers in
 #     different currencies produce costs in different currencies; adding them
 #     up is not something this code will do for you.
