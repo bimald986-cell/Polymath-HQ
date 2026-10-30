@@ -130,6 +130,23 @@ def test_known_usage_and_known_rate_gives_the_exact_amount(tmp_path):
     assert cost["model"] == "test-model"
 
 
+def test_large_operands_remain_exact_beyond_decimal_context(tmp_path):
+    """A 33-digit pico amount must not lose its final unit to Decimal context."""
+    table = write_table(tmp_path / "prices.yaml", [
+        entry(inp="999999999.999999", out="0")
+    ])
+    cost = cost_for_run(
+        usage_known(999_999_999_999_999_999, 0),
+        model="test-model",
+        table=table,
+        at=date(2026, 6, 1),
+    )
+
+    assert cost["status"] == "known"
+    assert cost["amount_pico"] == 999999999999998999000000000000001
+    assert cost["amount"] == "999999999999998999000.000000000001"
+
+
 def test_two_cycles_sum_exactly_without_drift(tmp_path):
     """Amounts are integers in pico units, so addition cannot accumulate error."""
     table = write_table(tmp_path / "prices.yaml",
@@ -333,7 +350,7 @@ def test_the_committed_table_ships_with_no_rates():
         )
 
 
-@pytest.mark.parametrize("bad_rate", ["1.2345678", "-1", "lots", True])
+@pytest.mark.parametrize("bad_rate", ["1.2345678", "-1", "lots", True, "1000000000000000000"])
 def test_a_malformed_rate_is_refused_not_rounded(tmp_path, bad_rate):
     path = tmp_path / "prices.yaml"
     path.write_text(yaml.safe_dump({"version": 1,
