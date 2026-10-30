@@ -14,11 +14,11 @@ later, so editing a rate in the table never rewrites what an already-recorded
 cycle cost.
 
 **The arithmetic is exact.** Amounts are integers in *pico* units (``1e-12`` of
-one currency unit, i.e. ``amount_pico / 1e12`` = the amount), computed with
-:class:`decimal.Decimal` from the rates as written. No float ever touches a
-token count. ``(prompt_tokens * in_rate + completion_tokens * out_rate) /
-1e6`` in currency units is exactly ``amount_pico / 1e12``, and two cycles' costs
-add as integers, so repeated summation cannot drift. That representation is the
+one currency unit, i.e. ``amount_pico / 1e12`` = the amount). Rates are parsed
+as :class:`decimal.Decimal`, converted exactly from their decimal tuples into
+integer pico-per-token units, and multiplied by token counts using Python
+integers. No Decimal context precision or float arithmetic touches the cost.
+Two cycles' costs add as integers, so repeated summation cannot drift. That representation is the
 "equivalent exact representation" of integer micro-units: quantising instead to
 micro-units would have to round, and a rounded amount is not an exact one.
 
@@ -47,16 +47,15 @@ PRICE_TABLE_ENV = "HORIZON_PRICE_TABLE"
 #: Bumped only when the *shape* of the YAML changes; see ``config/prices.yaml``.
 PRICE_TABLE_VERSION = 1
 
-#: 1e-12 of one currency unit. See the module docstring for why not 1e-6.
-PICO_PER_UNIT = Decimal(1).scaleb(12)
-
 #: A rate with more decimal places than this could not be represented exactly
 #: in pico units for a very large token count, so it is refused at load time
 #: rather than silently rounded.
 MAX_RATE_DECIMALS = 6
 
-#: Ten to the sixth: rates are per *million* tokens.
-TOKENS_PER_RATE_UNIT = Decimal(10) ** 6
+#: Bound whole-number rate digits so a malformed exponent cannot create an
+#: unbounded integer during exact conversion. 18 digits is far beyond any
+#: ordinary per-million-token price while keeping the representation finite.
+MAX_RATE_INTEGER_DIGITS = 18
 
 _ENTRY_FIELDS = (
     "model",
@@ -134,13 +133,47 @@ def _as_rate(value: Any, *, field: str, model: str) -> Decimal:
         )
     if not rate.is_finite() or rate < 0:
         raise PriceTableError(f"{model}: {field} must be finite and non-negative")
-    exponent = rate.as_tuple().exponent
+    sign, digits, exponent = rate.as_tuple()
     if isinstance(exponent, int) and -exponent > MAX_RATE_DECIMALS:
         raise PriceTableError(
             f"{model}: {field} has more than {MAX_RATE_DECIMALS} decimal places, "
             "which cannot be represented exactly in pico units"
         )
+    integer_digits = max(1, len(digits) + exponent) if rate else 1
+    if integer_digits > MAX_RATE_INTEGER_DIGITS:
+        raise PriceTableError(
+            f"{model}: {field} has more than {MAX_RATE_INTEGER_DIGITS} whole-number digits"
+        )
     return rate
+
+
+def _rate_to_pico_per_token(rate: Decimal) -> int:
+    """Convert a validated per-million-token rate to exact pico units/token.
+
+    A currency amount is ``tokens * rate / 1e6``. Multiplying that by
+    ``1e12`` pico-units per currency unit leaves ``tokens * rate * 1e6``.
+    The decimal tuple gives ``rate * 1e6`` as an integer without invoking the
+    process-wide Decimal context.
+    """
+    sign, digits, exponent = rate.as_tuple()
+    coefficient = int("".join(str(digit) for digit in digits) or "0")
+    if coefficient == 0:
+        return 0
+    shift = exponent + MAX_RATE_DECIMALS
+    if shift < 0:
+        raise ValueError("rate must be validated before pico conversion")
+    scaled = coefficient * (10 ** shift)
+    return -scaled if sign else scaled
+
+
+def _format_pico_amount(amount_pico: int) -> str:
+    """Format integer pico units as an exact decimal currency amount."""
+    sign = "-" if amount_pico < 0 else ""
+    whole, fractional = divmod(abs(amount_pico), 10 ** 12)
+    if fractional == 0:
+        return f"{sign}{whole}"
+    fraction_text = f"{fractional:012d}".rstrip("0")
+    return f"{sign}{whole}.{fraction_text}"
 
 
 def _as_date(value: Any, *, model: str) -> date:
@@ -372,25 +405,23 @@ def cost_for_run(
     if entry is None:
         return _unknown_cost(model, when, why)
 
-    # (tokens * rate) / 1e6 currency units, exactly. ``scaleb(12)`` moves that
-    # to pico units -- the same operation as multiplying by 1e12 -- and the
-    # integrality check is what makes "exact" true rather than assumed.
-    amount = (
-        Decimal(tokens["prompt_tokens"]) * entry.input_per_mtok
-        + Decimal(tokens["completion_tokens"]) * entry.output_per_mtok
-    ) / TOKENS_PER_RATE_UNIT
-    pico = amount * PICO_PER_UNIT
-    if pico != pico.to_integral_value():  # pragma: no cover - guarded by MAX_RATE_DECIMALS
-        raise AssertionError(f"priced amount {amount} is not exact in pico units")
+    # The rate helper returns exact pico-units per token. All arithmetic from
+    # here is integer-only, so values beyond Decimal's default 28-digit context
+    # remain exact instead of silently losing low-order pico units.
+    amount_pico = (
+        tokens["prompt_tokens"] * _rate_to_pico_per_token(entry.input_per_mtok)
+        + tokens["completion_tokens"] * _rate_to_pico_per_token(entry.output_per_mtok)
+    )
+    amount = _format_pico_amount(amount_pico)
 
     return {
         "status": "known",
         "model": entry.model,
         "currency": entry.currency,
         # The exact amount as written, for a human reading the audit line.
-        "amount": format(amount, "f"),
+        "amount": amount,
         # The same amount as an integer, for arithmetic that must not drift.
-        "amount_pico": int(pico),
+        "amount_pico": amount_pico,
         "provider": entry.provider,
         "input_per_mtok": str(entry.input_per_mtok),
         "output_per_mtok": str(entry.output_per_mtok),
