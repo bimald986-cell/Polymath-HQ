@@ -133,7 +133,7 @@ def _as_rate(value: Any, *, field: str, model: str) -> Decimal:
         )
     if not rate.is_finite() or rate < 0:
         raise PriceTableError(f"{model}: {field} must be finite and non-negative")
-    sign, digits, exponent = rate.as_tuple()
+    _, digits, exponent = rate.as_tuple()
     if isinstance(exponent, int) and -exponent > MAX_RATE_DECIMALS:
         raise PriceTableError(
             f"{model}: {field} has more than {MAX_RATE_DECIMALS} decimal places, "
