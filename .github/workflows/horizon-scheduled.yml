@@ -20,9 +20,9 @@ jobs:
       run:
         working-directory: intelligent-agency
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -32,18 +32,14 @@ jobs:
       - name: Run tests before Horizon cycle
         run: pytest -q
 
-      # Artifacts are read-only to later runs, so the state dir is carried
-      # between runs by the cache instead. A cache entry is immutable per exact
-      # key, so the key must be unique per run (run_id + attempt) or the save
-      # would be skipped; `restore-keys` then matches every earlier key with the
-      # `horizon-state-` prefix, and GitHub restores the *most recently created*
-      # match -- i.e. the newest previous state. So: restore by prefix, save by
-      # unique key, and the next run always finds the newest state. A miss
-      # (first run, or eviction after 7 idle days) simply starts empty.
-      # Cache keys are scoped to this branch by default, and this workflow only
-      # runs on the default branch (schedule/dispatch), so runs see each other.
+      # A mock cycle is a simulation, not durable learning. Do not restore or
+      # save a persistent state cache when no non-mock provider is explicitly
+      # configured. This also avoids reusing legacy mock memory in simulation.
+      # If a provider is configured, state remains bounded and cache-scoped to
+      # this workflow as before.
       - name: Restore Horizon state
-        uses: actions/cache@v4
+        if: vars.AGENCY_LLM != '' && vars.AGENCY_LLM != 'mock'
+        uses: actions/cache@v6
         with:
           path: intelligent-agency/.horizon
           key: horizon-state-${{ github.run_id }}-${{ github.run_attempt }}
@@ -62,6 +58,7 @@ jobs:
           AGENCY_LLM_API_KEY: ${{ secrets.AGENCY_LLM_API_KEY }}
         run: |
           python - <<'PY'
+          import json
           import os
           import sys
           sys.path.insert(0, 'src')
@@ -70,10 +67,6 @@ jobs:
           from agency.state import StateStore
 
           p = build_agency()
-          # The step already sets HORIZON_STATE_DIR=.horizon; the store lives in
-          # the same directory so one cache entry carries both the audit trail
-          # and the memory. With a store, a cycle recalls what earlier cycles
-          # recorded and records its own outcome for the next one.
           state_dir = os.environ.get('HORIZON_STATE_DIR', '.horizon')
           store = StateStore(os.path.join(state_dir, 'horizon.db'))
           print('memory rows on entry:', len(store.recall(limit=50)))
@@ -86,15 +79,38 @@ jobs:
               'Do not merge or perform consequential external actions.'
           )
           print('memory rows on exit:', len(store.recall(limit=50)))
-          print(result)
+
+          # Do not print the full answer or upload the state database/log. The
+          # repository is public, and those can contain recalled context or
+          # provider output. Emit only a sanitized status summary instead.
+          safe_result = {key: result.get(key) for key in ('status', 'analysis_mode', 'cycle')}
+          print('Horizon cycle summary:', safe_result)
+          events = runtime.recent_events(limit=1)
+          event = events[-1] if events else {}
+          summary = {
+              'started_at': event.get('started_at'),
+              'finished_at': event.get('finished_at'),
+              'status': result.get('status'),
+              'analysis_mode': result.get('analysis_mode', 'unknown'),
+              'cycle': result.get('cycle'),
+          }
+          with open('horizon-audit-summary.json', 'w', encoding='utf-8') as fh:
+              json.dump(summary, fh, sort_keys=True)
+              fh.write('\n')
+          step_summary = os.environ.get('GITHUB_STEP_SUMMARY')
+          if step_summary:
+              with open(step_summary, 'a', encoding='utf-8') as fh:
+                  fh.write('### Horizon scheduled cycle\n\n')
+                  fh.write(f"- Status: `{summary['status']}`\n")
+                  fh.write(f"- Analysis mode: `{summary['analysis_mode']}`\n")
+                  fh.write(f"- Cycle: `{summary['cycle']}`\n")
           PY
 
-      - name: Upload Horizon audit
+      - name: Upload sanitized Horizon run summary
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: horizon-audit-${{ github.run_id }}
-          path: intelligent-agency/.horizon/
-          include-hidden-files: true
+          name: horizon-run-summary-${{ github.run_id }}
+          path: intelligent-agency/horizon-audit-summary.json
           if-no-files-found: warn
           retention-days: 30

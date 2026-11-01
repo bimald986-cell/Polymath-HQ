@@ -1,14 +1,8 @@
 """The runtime records its own cycle, so the *next* cycle starts from it.
 
-Before this, only ``Worker`` ever called ``StateStore.remember`` -- the runtime
-read memory (``runtime.py`` ``augment_prompt``) and never wrote it, so a
-store-backed ``HorizonRuntime`` recalled nothing it had done itself.
-
-These tests assert the fact in the prompt the model actually receives, so
-deleting the recording write (``HorizonRuntime._remember_cycle``) turns them
-red. Verified by mutation: commenting out that call fails
-``test_second_cycle_prompt_contains_first_cycles_answer`` and
-``test_cycle_records_are_bounded_in_their_own_scope``.
+The provider fixture is an OpenAICompatibleBackend with its network method
+replaced by a deterministic local stub. This preserves provider classification
+coverage without making a network request or using a real API key.
 """
 import os
 import sys
@@ -17,23 +11,37 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
 
+from agency.llm import OpenAICompatibleBackend
 from agency.memory_context import HEADER
+from agency.model_router import FallbackBackend
 from agency.runtime import MEMORY_SCOPE, MEMORY_WINDOW, HorizonRuntime
 from agency.state import StateStore
 
 
 class RecordingHorizon:
-    """Records every prompt it is handed and answers with a cycle-specific fact."""
+    """Records prompts and routes them through a deterministic provider stub."""
 
     def __init__(self):
         self.prompts = []
-        self.last_usage = {"status": "known", "prompt_tokens": 123,
-                           "completion_tokens": 45, "total_tokens": 168}
+        self.provider = OpenAICompatibleBackend(
+            "http://127.0.0.1:1/v1", "offline-test-key", "offline-test-model"
+        )
+        self.provider.prompts = []
+        self.provider.last_usage = {
+            "status": "known", "prompt_tokens": 123,
+            "completion_tokens": 45, "total_tokens": 168,
+        }
+        self.provider.complete = self._complete
+        self.backend = FallbackBackend([("test-provider", self.provider)])
+        self.last_usage = self.provider.last_usage
+
+    def _complete(self, system_prompt, user_prompt):
+        self.provider.prompts.append(user_prompt)
+        return f"FINDING-{len(self.provider.prompts)}: the queue is empty"
 
     def advise(self, task):
         self.prompts.append(task)
-        # A fact unique to this cycle, so a later prompt can be searched for it.
-        return f"FINDING-{len(self.prompts)}: the queue is empty"
+        return self.backend.complete("test system", task)
 
 
 class BrokenStore:
@@ -55,10 +63,8 @@ def test_second_cycle_prompt_contains_first_cycles_answer(tmp_path):
     first = runtime.run_once("scan HQ")
     second = runtime.run_once("scan HQ")
 
-    # Cycle 1 started cold: the prompt is the bare task, no recall block.
     assert first["cycle"] == "1"
     assert HEADER not in horizon.prompts[0]
-    # Cycle 2's outgoing prompt carries what cycle 1 recorded.
     assert HEADER in horizon.prompts[1]
     assert "FINDING-1: the queue is empty" in horizon.prompts[1]
     assert second["cycle"] == "2"
@@ -88,9 +94,7 @@ def test_cycle_records_are_bounded_in_their_own_scope(tmp_path):
 
     rows = store.recall(scope=MEMORY_SCOPE, limit=100)
     assert len(rows) == MEMORY_WINDOW
-    # The newest cycle is still the one that was just written.
     assert max(row["value"]["cycle"] for row in rows) == MEMORY_WINDOW + 2
-    # The worker's own memory is untouched by the runtime's writes.
     work = store.recall(scope="horizon/work-results", limit=100)
     assert len(work) == 1 and work[0]["key"] == "work:1"
 
@@ -111,16 +115,10 @@ def test_recorded_cycle_carries_usage_and_task(tmp_path):
 
 
 def test_cycle_number_survives_a_new_process(tmp_path):
-    """A scheduled run is one process per cycle.
-
-    The storage has to be the source of the cycle number: if the runtime used
-    its own per-process counter, every CI run would record ``cycle: 1`` and
-    overwrite the same row forever instead of rotating through the window.
-    """
+    """Persistent storage provides cycle numbers across separate runtime instances."""
     db = str(tmp_path / "horizon.db")
     HorizonRuntime(RecordingHorizon(), interval_seconds=60, state_dir=str(tmp_path),
                    memory=StateStore(db)).run_once("scan HQ")
-    # A second runtime and a second store handle, as the next scheduled run has.
     HorizonRuntime(RecordingHorizon(), interval_seconds=60, state_dir=str(tmp_path),
                    memory=StateStore(db)).run_once("scan HQ")
 
