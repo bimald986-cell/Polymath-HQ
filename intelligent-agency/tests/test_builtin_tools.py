@@ -4,6 +4,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
 
+import agency.builtin_tools as builtin_tools  # noqa: E402
 from agency.builtin_tools import (  # noqa: E402
     MAX_READ_BYTES,
     default_registry,
@@ -165,3 +166,36 @@ def test_sandbox_refusal_becomes_a_failed_call_not_a_bypass(tmp_path):
     assert result.ok is False
     assert result.denied is False
     assert "outside the configured repo root" in result.error
+
+
+
+def test_run_tests_does_not_inherit_unapproved_parent_environment(tmp_path, monkeypatch):
+    captured = {}
+
+    def fake_run(command, *, cwd, env, capture_output, timeout):
+        captured.update(env)
+        return type(
+            "Completed",
+            (),
+            {"stdout": b"1 passed\n", "stderr": b"", "returncode": 0},
+        )()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "do-not-forward")
+    monkeypatch.setenv("GITHUB_TOKEN", "do-not-forward")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "do-not-forward")
+    monkeypatch.setenv("UNAPPROVED_TEST_SETTING", "do-not-forward")
+    monkeypatch.setattr(builtin_tools.subprocess, "run", fake_run)
+
+    result = run_tests(tmp_path, target=".", timeout_seconds=5)
+
+    assert result["ok"] is True
+    assert "PATH" in captured
+    assert captured["PYTHONDONTWRITEBYTECODE"] == "1"
+    assert captured["PYTHONIOENCODING"] == "utf-8"
+    for name in (
+        "OPENAI_API_KEY",
+        "GITHUB_TOKEN",
+        "AWS_SECRET_ACCESS_KEY",
+        "UNAPPROVED_TEST_SETTING",
+    ):
+        assert name not in captured
