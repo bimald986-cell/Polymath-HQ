@@ -137,7 +137,7 @@ def test_loop_result_is_persisted_and_observable(tmp_path):
     assert record["task"] == "read a.txt"
     assert record["status"] == "completed"
     assert record["steps"][0]["tool"] == "read_file"
-    assert record["tools"] == ["read_file", "run_tests"]
+    assert record["tools"] == ["http_get_allowlisted", "read_file", "run_tests"]
 
 
 def test_loop_policy_decisions_survive_in_the_audit_trail(tmp_path):
