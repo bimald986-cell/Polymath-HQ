@@ -83,9 +83,15 @@ The transport now exists in code and is covered by tests, but nothing runs it ye
   the same queue the dashboard writes to, resolved from the same `HORIZON_DB_PATH`.
   `github_review_changeset` items are published as a review branch + pull request; all other items
   stay advisory.
-- **Still required before it runs unattended:** a `GITHUB_TOKEN` with write scope, `GITHUB_REPO`, a
-  live LLM provider (`AGENCY_LLM`), and a project-to-repo mapping - `core/projects.yaml` is still read
-  by no runtime code, so a target repository must be passed explicitly.
+- **Still required before it runs unattended:** a `GITHUB_TOKEN` with write scope, a live LLM
+  provider (`AGENCY_LLM`), and a target repository — either `--repo`/`GITHUB_REPO`, or
+  `--project NAME` for a project registered in `core/projects.yaml`.
+- **A registered project now selects the repository.** `python -m agency.horizon_worker_main
+  --publish-github --project mind-mythos` takes `github` and `default_branch` from the registry entry
+  (`intelligent-agency/src/agency/projects.py`). An unknown project, or a `--repo` that contradicts the
+  registry entry, is refused **before any network call**. This does **not** mean the Mind & Mythos
+  repository is reachable: `bimald986-cell/mind-mythos` is registered, and registration is a claim, not
+  an existence check. Nothing in this repository can confirm it resolves.
 - **Merge remains a human decision**, enforced in code: no path on this transport merges.
 Chat alone still cannot push. The durable queue + worker + GitHub adapter now can, when configured.
 
