@@ -23,7 +23,7 @@ from pathlib import Path
 import re
 from typing import Any, Dict, List, Optional
 
-import yaml
+from . import projects as projects_module
 
 ROOT = Path(__file__).resolve().parents[3]
 MEMORY = ROOT / "memory"
@@ -64,16 +64,19 @@ Answer clearly and accurately, without inventing progress.
 
 
 def load_project_registry(registry_path: Optional[Path | str] = None) -> Dict[str, Any]:
-    """The ``projects:`` mapping from ``core/projects.yaml`` (empty if unreadable)."""
-    path = Path(registry_path) if registry_path is not None else PROJECTS_REGISTRY
+    """The ``projects:`` mapping from ``core/projects.yaml`` (empty if unreadable).
+
+    The YAML read and the shape check live in :mod:`agency.projects`, which is the
+    repository's one registry parser. This wrapper stays **tolerant** on purpose:
+    the dashboard and ``cli.py ask`` quote capsules for a human, so an unreadable
+    registry degrades to "no project context" instead of breaking a chat. The
+    worker path calls ``agency.projects.resolve`` instead, which raises, because a
+    publish target must never be guessed.
+    """
     try:
-        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError):
+        return projects_module.load_raw_registry(registry_path)
+    except projects_module.ProjectError:
         return {}
-    if not isinstance(raw, dict):
-        return {}
-    projects = raw.get("projects")
-    return projects if isinstance(projects, dict) else {}
 
 
 def project_catalog(
