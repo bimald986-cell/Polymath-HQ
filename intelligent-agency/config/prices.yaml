@@ -1,0 +1,77 @@
+# Horizon price table -- what a cycle cost, and why.
+#
+# This file is the *only* place a rate lives. `src/agency/pricing.py` reads it,
+# prices each run at record time, and stores the result with the run. Changing a
+# rate here never rewrites the cost of a cycle that has already been recorded.
+#
+# LOCATION AND OVERRIDE
+#   Default: intelligent-agency/config/prices.yaml (found relative to the code,
+#   so it works from the repo root and from intelligent-agency/ alike).
+#   Override: the HORIZON_PRICE_TABLE environment variable (the scheduled
+#   workflow sets it to config/prices.yaml explicitly).
+#
+# ENTRY FORMAT -- one entry per model and effective date:
+#
+#   models:
+#     - model: "<exact AGENCY_LLM_MODEL string>"
+#       provider: "<provider label, e.g. the vendor's name>"
+#       input_per_mtok: "<rate per 1,000,000 input (prompt) tokens>"
+#       output_per_mtok: "<rate per 1,000,000 output (completion) tokens>"
+#       currency: "USD"
+#       effective_from: "YYYY-MM-DD"
+#       source: "<URL or note saying where the rate came from>"
+#
+#   Every field is required; a missing one is an error, not a default.
+#
+#   * `model` is matched EXACTLY (after trimming surrounding spaces). It is the
+#     value the provider is sent, i.e. AGENCY_LLM_MODEL -- "gpt-4o" does not
+#     match "gpt-4o-mini", and a near-miss is reported as an unknown cost
+#     rather than being priced with the wrong rate.
+#   * Rates are the amount of `currency` charged for one million tokens, so
+#     cost = (prompt_tokens * input_per_mtok + completion_tokens *
+#     output_per_mtok) / 1e6, computed exactly and stored as an integer number
+#     of 1e-12 currency units. Quote rates ("0.15") so they are read as the
+#     decimal you wrote; at most 6 decimal places and at most 18 whole-number
+#     digits are accepted.
+#   * `currency` is recorded on the run but never converted. Two providers in
+#     different currencies produce costs in different currencies; adding them
+#     up is not something this code will do for you.
+#   * `effective_from` is the first day the rate applies. Several entries for
+#     the same model are versions: a run is priced with the latest entry whose
+#     effective_from is on or before the run's date. A run before every entry's
+#     date is an unknown cost, never a guess.
+#   * `source` is where the number came from (a pricing URL, an invoice, a
+#     quote). It is stored with every run so a reader can go and check.
+#
+# SHIPPED EMPTY, ON PURPOSE
+#   There are no rates below. We will not invent one, and no provider's
+#   published prices are reproduced here. Until an entry exists for the model
+#   AGENCY_LLM_MODEL names, every run records
+#       "cost": {"status": "unknown", "amount": null, "note": "model ... has no
+#                entry in ...prices.yaml; add one to price it"}
+#   which is the honest answer, not a zero.
+#
+#   Adding the two numbers is a data-only change: uncomment the example below
+#   (it is inert -- it names no real model and carries no real rate), replace
+#   the placeholders, and commit. No code change, no new secret.
+#
+# WHAT A COST IS NOT
+#   It is an estimate from a published per-token rate, not a bill. Provider
+#   caching discounts, batch discounts, per-request surcharges, minimum charges,
+#   free-tier allowances and price changes that are not in this file are all
+#   invisible to us. Reconcile against the provider's invoice before treating
+#   any total as money actually spent.
+#
+# EXAMPLE (inert: commented out, placeholder model, placeholder rates)
+#
+# models:
+#   - model: "example-model-name"
+#     provider: "example-provider"
+#     input_per_mtok: "0.10"
+#     output_per_mtok: "0.40"
+#     currency: "USD"
+#     effective_from: "2026-01-01"
+#     source: "placeholder -- replace with the provider's pricing URL"
+
+version: 1
+models: []

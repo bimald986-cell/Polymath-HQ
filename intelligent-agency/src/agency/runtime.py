@@ -22,10 +22,10 @@ import os
 import time
 from typing import Callable, Dict, List, Optional
 
-from .llm import MockBackend, OpenAICompatibleBackend
+from .llm import MockBackend, OpenAICompatibleBackend, unknown_usage
 from .memory_context import augment_prompt
 from .model_router import FallbackBackend
-from .state import StateStore
+from .pricing import cost_for_run, load_price_table_safely
 
 MEMORY_SCOPE = "horizon/runtime"
 MEMORY_WINDOW = 5
@@ -41,7 +41,46 @@ class RuntimeEvent:
     cycle: int
     message: str
     usage: Optional[Dict] = None
+    # Which backend actually answered -- ``simulation``, ``live`` or
+    # ``unknown``. Reported separately from ``status`` because a mock cycle is
+    # a successful run and a useless piece of evidence at the same time.
     analysis_mode: str = "unknown"
+    # What this cycle cost, priced at record time from the committed price
+    # table. ``{"status": "unknown", "note": ...}`` when it could not be
+    # priced -- never zeros, and never recomputed later. A ``simulation`` cycle
+    # is never priced, whatever the table says: see ``cost_for_run``.
+    cost: Optional[Dict] = None
+
+
+def analysis_mode_for(horizon) -> str:
+    """Classify the backend that actually answered, not just its router name.
+
+    ``simulation`` is a mock backend -- including a mock the ``FallbackBackend``
+    picked after a live provider failed -- because canned output is a rehearsal,
+    not evidence. ``live`` is a real provider call. Anything that cannot be
+    positively classified stays ``unknown``: an unclassified run is never
+    upgraded to ``live``, and it is never priced as if it were.
+
+    Shared by ``HorizonRuntime`` (which records the mode on its audit event and
+    run row) and ``DurableHorizonWorker`` (which records it on its run row), so
+    the two paths cannot drift apart in what they call a simulation.
+    """
+    backend = getattr(horizon, "backend", None)
+    if isinstance(backend, MockBackend):
+        return "simulation"
+    if type(backend) is OpenAICompatibleBackend:
+        return "live"
+    if isinstance(backend, FallbackBackend) and backend.last_provider:
+        selected = next(
+            (candidate for name, candidate in backend.backends
+             if name == backend.last_provider),
+            None,
+        )
+        if isinstance(selected, MockBackend):
+            return "simulation"
+        if type(selected) is OpenAICompatibleBackend:
+            return "live"
+    return "unknown"
 
 
 class HorizonRuntime:
@@ -54,11 +93,19 @@ class HorizonRuntime:
         state_dir: Optional[str] = None,
         max_backoff_seconds: int = 21600,
         memory=None,
+        price_table=None,
     ):
         if interval_seconds < 60:
             raise ValueError("interval_seconds must be at least 60 seconds")
         self.horizon = horizon
         self.memory = memory
+        # The rate table is read once per runtime. A malformed or missing table
+        # is carried as an error string so every cycle records an unknown cost
+        # with that reason instead of the cycle failing to start.
+        if price_table is None:
+            self.price_table, self.price_table_error = load_price_table_safely()
+        else:
+            self.price_table, self.price_table_error = price_table, None
         self.interval_seconds = interval_seconds
         self.max_backoff_seconds = max_backoff_seconds
         self.state_dir = state_dir or os.getenv("HORIZON_STATE_DIR", ".horizon")
@@ -114,22 +161,38 @@ class HorizonRuntime:
 
     def _analysis_mode(self) -> str:
         """Classify the backend that actually answered, not just its router name."""
-        backend = getattr(self.horizon, "backend", None)
-        if isinstance(backend, MockBackend):
-            return "simulation"
-        if type(backend) is OpenAICompatibleBackend:
-            return "live"
-        if isinstance(backend, FallbackBackend) and backend.last_provider:
-            selected = next(
-                (candidate for name, candidate in backend.backends
-                 if name == backend.last_provider),
-                None,
-            )
-            if isinstance(selected, MockBackend):
-                return "simulation"
-            if type(selected) is OpenAICompatibleBackend:
-                return "live"
-        return "unknown"
+        return analysis_mode_for(self.horizon)
+
+    def _record_run(self, started_ts: float, usage: Optional[Dict],
+                    cost: Optional[Dict], analysis_mode: str) -> None:
+        """Write this cycle to the store's ``runs`` table, cost included.
+
+        No-op without a store. The cost is stored on the row and never
+        recomputed, so ``StateStore.recent_runs()`` reports what a cycle cost
+        at the time it ran -- and, in the scheduled workflow, the uploaded
+        ``.horizon/`` artifact carries that row.
+
+        It is deliberately *not* added to the memory row: memory is rendered
+        into the next cycle's prompt under a 240-character-per-entry budget
+        (``memory_context.MAX_ENTRY_CHARS``), and a cost block there would
+        crowd out the finding the next cycle is supposed to learn from.
+
+        A ``simulation`` cycle still gets a row -- it did run -- but the row
+        says ``analysis_mode="simulation"`` and carries a cost of ``unknown``,
+        so it can never be read as evidence or as spend.
+        """
+        if self.memory is None:
+            return
+        self.memory.record_run(
+            worker_id="horizon-runtime",
+            kind="horizon_runtime_cycle",
+            status="ok",
+            usage=usage if usage is not None else unknown_usage("advisor reported no usage"),
+            cost=cost,
+            analysis_mode=analysis_mode,
+            started_at=started_ts,
+            finished_at=time.time(),
+        )
 
     def run_once(
         self,
@@ -141,20 +204,37 @@ class HorizonRuntime:
         self._cycle += 1
         started = self._now()
         analysis_mode = "unknown"
+        started_ts = time.time()
         try:
             prompt = augment_prompt(task, self.memory, project=project, tags=tags or ())
             answer = self.horizon.advise(prompt)
             usage = getattr(self.horizon, "last_usage", None)
+            usage = usage if isinstance(usage, dict) else None
             analysis_mode = self._analysis_mode()
+
+            # Priced now, from the rate in force on this cycle's date, and
+            # written into the audit line: the artifact then says what the
+            # cycle cost rather than only that it ran. The mode goes with it so
+            # a simulation is never priced as if a provider had done the work.
+            cost = cost_for_run(
+                usage,
+                model=getattr(self.horizon, "model", None),
+                table=self.price_table,
+                table_error=self.price_table_error,
+                at=datetime.fromtimestamp(started_ts, timezone.utc),
+                analysis_mode=analysis_mode,
+            )
 
             # Preserve workflow success as status=ok, but never treat canned
             # mock output as durable learning or feed it into later prompts.
+            # The cost path above cannot bypass this: it only reads the run.
             if analysis_mode == "live":
-                self._remember_cycle(task, answer, usage if isinstance(usage, dict) else None)
+                self._remember_cycle(task, answer, usage)
 
+            self._record_run(started_ts, usage, cost, analysis_mode)
             event = RuntimeEvent(
                 started, self._now(), "ok", self._cycle, str(answer),
-                usage if isinstance(usage, dict) else None, analysis_mode,
+                usage=usage, analysis_mode=analysis_mode, cost=cost,
             )
             self._append(event)
             return {
@@ -164,6 +244,9 @@ class HorizonRuntime:
                 "cycle": str(self._cycle),
             }
         except Exception as exc:
+            # No cost is attached to a failed cycle: the provider's usage for a
+            # call that raised was never observed, so there is nothing to price
+            # -- and ``cost`` stays None rather than becoming a zero.
             event = RuntimeEvent(
                 started, self._now(), "error", self._cycle, repr(exc),
                 analysis_mode=analysis_mode,
