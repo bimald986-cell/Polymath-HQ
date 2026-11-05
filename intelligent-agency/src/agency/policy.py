@@ -33,8 +33,11 @@ class ToolRisk(str, Enum):
 
 # Default risk map for known tools. Unknown tools default to NETWORK (cautious).
 # Implemented ids (see ``builtin_tools.py``, the tool-use channel): ``read_file``
-# covers the intended ``local_file_read`` capability, and ``run_tests`` is new.
-# Both are also declared by the tool itself: ``ToolDispatcher`` writes a
+# covers the intended ``local_file_read`` capability, ``run_tests`` is new, and
+# ``http_get_allowlisted`` is implemented in ``public_api.py`` — GET only, host
+# allowlist from ``core/public_api_allowlist.yaml``, no credentials. Every other id
+# below is a risk *classification* only; naming one is rejected as an unknown tool.
+# Each is also declared by the tool itself: ``ToolDispatcher`` writes a
 # registered tool's declared risk into this map, so the tool, not the caller,
 # decides how it is classified.
 DEFAULT_TOOL_RISKS: Dict[str, ToolRisk] = {

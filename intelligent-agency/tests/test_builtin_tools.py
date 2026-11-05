@@ -143,9 +143,12 @@ def test_run_tests_refuses_a_target_outside_the_root(tmp_path):
 # ------------------------------------------------------------ through the gate
 def test_builtin_tools_are_registered_with_their_declared_risk(tmp_path):
     registry = default_registry(tmp_path)
-    assert registry.names() == ["read_file", "run_tests"]
+    # The third tool is the one the `research` authority names (advisor.py:49); it
+    # was declared in policy.py but did not exist until public_api.py implemented it.
+    assert registry.names() == ["http_get_allowlisted", "read_file", "run_tests"]
     assert registry.risks()["read_file"] is ToolRisk.READ
     assert registry.risks()["run_tests"] is ToolRisk.WRITE_LOCAL
+    assert registry.risks()["http_get_allowlisted"] is ToolRisk.NETWORK
 
 
 def test_read_file_through_the_dispatcher_reads_and_is_audited(tmp_path):

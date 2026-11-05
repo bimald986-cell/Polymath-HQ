@@ -37,7 +37,7 @@ def _no_ambient_provider(monkeypatch):
 def test_cli_tools_lists_only_the_tools_that_exist(tmp_path, capsys):
     assert cli.main(["tools", "--repo-root", str(tmp_path)]) == 0
     specs = json.loads(capsys.readouterr().out)
-    assert sorted(s["name"] for s in specs) == ["read_file", "run_tests"]
+    assert sorted(s["name"] for s in specs) == ["http_get_allowlisted", "read_file", "run_tests"]
     assert all("risk" in s for s in specs)
 
 
@@ -94,7 +94,7 @@ def test_cli_loop_executes_a_real_tool_and_persists_the_run(tmp_path, capsys):
     record = json.loads(lines[0])
     assert record["task"] == "read notes/hq.txt"
     assert record["actor"] == "cli-test"
-    assert record["tools"] == ["read_file", "run_tests"]
+    assert record["tools"] == ["http_get_allowlisted", "read_file", "run_tests"]
     assert record["steps"][0]["tool"] == "read_file"
 
 

@@ -1,10 +1,12 @@
-"""The first two real tools: ``read_file`` and ``run_tests``.
+"""The filesystem tools: ``read_file`` and ``run_tests`` (plus, from
+:mod:`agency.public_api`, ``http_get_allowlisted``).
 
-Both are sandboxed to a single configured repository root and both are
-registered through :mod:`agency.tools`, so neither can execute without passing
+All are sandboxed to a single configured repository root — the network tool is
+sandboxed to an allowlist file instead — and all are
+registered through :mod:`agency.tools`, so none can execute without passing
 ``PolicyEngine.check`` in the dispatch path.
 
-Sandbox rules (shared by both tools)
+Sandbox rules (shared by the filesystem tools)
 ------------------------------------
 * The root is explicit: ``default_registry(root=...)`` or the
   ``AGENCY_TOOL_REPO_ROOT`` environment variable. A path outside it is refused
@@ -32,6 +34,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .policy import ToolRisk
+from .public_api import http_get_allowlisted_tool
 from .tools import Tool, ToolArgumentError, ToolRegistry, ToolSandboxError
 
 #: Environment variable naming the single repository root tools may work in.
@@ -283,6 +286,15 @@ def run_tests_tool(root: Optional[os.PathLike | str] = None) -> Tool:
 
 
 def default_registry(root: Optional[os.PathLike | str] = None) -> ToolRegistry:
-    """The registry of built-in tools, sandboxed to one repo root."""
+    """The registry of built-in tools, sandboxed to one repo root.
+
+    ``http_get_allowlisted`` comes from :mod:`agency.public_api`; it is the tool the
+    ``research`` authority (``advisor.py:49``) names, so that authority now points at
+    something that exists. When the repo root carries its own
+    ``core/public_api_allowlist.yaml`` that file is used, otherwise the shipped
+    allowlist (or ``HORIZON_PUBLIC_API_ALLOWLIST``) applies.
+    """
     root_path = resolve_repo_root(root)
-    return ToolRegistry([read_file_tool(root_path), run_tests_tool(root_path)])
+    allowlist = Path(root_path) / "core" / "public_api_allowlist.yaml"
+    http_tool = http_get_allowlisted_tool(allowlist if allowlist.is_file() else None)
+    return ToolRegistry([read_file_tool(root_path), run_tests_tool(root_path), http_tool])

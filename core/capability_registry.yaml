@@ -105,6 +105,13 @@ capabilities:
   research:
     status: existing-partial
     owner: researcher
+    # Updated 2026-11-02: the tool the `research` authority names now exists.
+    # What is real: one GET-only fetch tool, host allowlist enforced from
+    # core/public_api_allowlist.yaml, no credentials, bounded size/time, nothing
+    # written to disk (intelligent-agency/src/agency/public_api.py).
+    # What is still missing: no source store, no citation checker, no synthesis
+    # step, and nothing in the scheduled cycle calls the tool.
+    implementation_note: "http_get_allowlisted (agency/public_api.py) is implemented and policy-gated; the surrounding research workflow is not."
 
   media_production:
     status: architecture-planned
