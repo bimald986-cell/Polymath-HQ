@@ -100,6 +100,18 @@ class PresidentAdvisor(Node):
         usage = getattr(self.backend, "last_usage", None)
         return dict(usage) if isinstance(usage, dict) else unknown_usage()
 
+    @property
+    def model(self) -> Optional[str]:
+        """The exact model string this advisor sends, or None if none is named.
+
+        This is the price table's key: the provider was asked to serve exactly
+        this name, so a rate listed under anything else would be a different
+        model's rate. The mock backend names no model, so it returns None and
+        its runs are costed ``unknown`` rather than given a made-up rate.
+        """
+        model = getattr(self.backend, "model", None)
+        return model if isinstance(model, str) and model.strip() else None
+
     def permissions(self) -> Dict[str, bool]:
         return dict(self.authority.__dict__)
 

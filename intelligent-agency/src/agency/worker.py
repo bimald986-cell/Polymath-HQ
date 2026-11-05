@@ -17,8 +17,10 @@ from datetime import datetime, timezone
 import os, socket, time
 from typing import Optional
 
-from .llm import MockBackend, unknown_usage
+from .llm import unknown_usage
 from .memory_context import augment_prompt
+from .pricing import cost_for_run, load_price_table_safely
+from .runtime import analysis_mode_for
 from .state import StateStore
 from .policy import PolicyEngine, default_engine
 
@@ -33,6 +35,7 @@ class DurableHorizonWorker:
         worker_id: str | None = None,
         policy: Optional[PolicyEngine] = None,
         publisher=None,
+        price_table=None,
     ):
         self.horizon = horizon
         self.store = store
@@ -41,6 +44,14 @@ class DurableHorizonWorker:
         self.daily_budget = float(os.getenv("HORIZON_DAILY_BUDGET_UNITS", "24"))
         self.policy = policy or default_engine()
         self.publisher = publisher
+        # Read once: a long-lived worker prices every run with the table it
+        # started with. A malformed table is carried as an error string and
+        # turns each run's cost into "unknown" with that reason, rather than
+        # stopping the worker.
+        if price_table is None:
+            self.price_table, self.price_table_error = load_price_table_safely()
+        else:
+            self.price_table, self.price_table_error = price_table, None
 
     def seed_if_empty(self):
         row = self.store.db.execute(
@@ -84,14 +95,30 @@ class DurableHorizonWorker:
             usage = getattr(self.horizon, "last_usage", None) or unknown_usage(
                 "advisor reported no usage"
             )
-            backend = getattr(self.horizon, "backend", None)
-            is_mock = isinstance(backend, MockBackend)
+            # Classified from the backend that actually answered, not from the
+            # router's name: a mock -- including a mock a FallbackBackend
+            # picked after a live provider failed -- is a simulation.
+            analysis_mode = analysis_mode_for(self.horizon)
+            is_mock = analysis_mode == "simulation"
+            # Priced here, once, and stored with the run: a later change to a
+            # rate must not rewrite what this cycle cost. A simulation is
+            # priced as ``unknown`` by cost_for_run, never as spend.
+            cost = cost_for_run(
+                usage,
+                model=getattr(self.horizon, "model", None),
+                table=self.price_table,
+                table_error=self.price_table_error,
+                at=datetime.fromtimestamp(started, timezone.utc),
+                analysis_mode=analysis_mode,
+            )
             self.store.record_run(
                 worker_id=self.worker_id,
                 work_item_id=item["id"],
                 kind=item["kind"],
                 status="ok",
                 usage=usage,
+                cost=cost,
+                analysis_mode=analysis_mode,
                 started_at=started,
             )
             # A mock cycle is a successful simulation, but canned output is not
