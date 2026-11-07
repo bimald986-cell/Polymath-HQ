@@ -18,6 +18,7 @@ projects:
   mind-mythos:
     name: Mind & Mythos
     aliases: [M&M, Mind and Mythos, mm]
+    capsule: mind-mythos.md
     github: bimald986-cell/mind-mythos
     default_branch: main
     type: content-brand
