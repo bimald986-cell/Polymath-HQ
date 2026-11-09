@@ -3,9 +3,22 @@
 # Merge to default_branch remains a human President decision.
 
 projects:
+  polymath-hq:
+    name: Polymath HQ
+    aliases: [HQ, Polymath, hq-framework]
+    capsule: polymath-hq.md
+    github: bimald986-cell/Polymath-HQ
+    default_branch: main
+    type: platform
+    notes: >
+      The HQ framework itself: President/director/specialist agents, policy engine,
+      model router, dashboard and the Horizon worker. Horizon may open President-Brief
+      PRs here on horizon/* branches; merge stays a human decision.
+
   mind-mythos:
     name: Mind & Mythos
     aliases: [M&M, Mind and Mythos, mm]
+    capsule: mind-mythos.md
     github: bimald986-cell/mind-mythos
     default_branch: main
     type: content-brand
