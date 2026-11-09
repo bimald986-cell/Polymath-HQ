@@ -83,22 +83,52 @@ def test_system_prompt_states_no_production_number_the_capsule_does_not():
     )
 
 
-def test_outgoing_chat_payload_carries_the_same_guarded_system_message(monkeypatch):
-    """Measured on the request body, so editing ``ollama_chat`` cannot skip the guard."""
+def test_outgoing_chat_payload_carries_the_same_guarded_system_message(monkeypatch, tmp_path):
+    """Measured on the request body, so no helper can skip the guard.
+
+    Reconciled, not weakened: the dashboard used to build this payload itself in
+    ``ollama_chat``; it now goes through ``agency.chat`` and the routed agent's
+    configured provider (see ``test_dashboard_chat_governance.py``). The
+    assertion is the same one, taken on the real outgoing HTTP body -- a real
+    ``OpenAICompatibleBackend`` posting to a captured ``urlopen`` -- so the guard
+    still fails if anything upstream drops the project block.
+    """
     capsule = MIND_MYTHOS_CAPSULE.read_text(encoding="utf-8")
     captured = {}
 
     def fake_urlopen(request, timeout=None):
+        captured["url"] = request.full_url
         captured["body"] = json.loads(request.data.decode("utf-8"))
-        return _FakeResponse(json.dumps({"message": {"content": "ok"}}).encode("utf-8"))
+        return _FakeResponse(json.dumps({
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {"prompt_tokens": 11, "completion_tokens": 3, "total_tokens": 14},
+        }).encode("utf-8"))
 
-    monkeypatch.setattr(dashboard.urllib.request, "urlopen", fake_urlopen)
-    answer = dashboard.ollama_chat(
-        "test-model", "hq", [{"role": "user", "content": "Mind & Mythos production 015?"}]
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    for name in (
+        "AGENCY_LLM_BASE_URL", "AGENCY_LLM_API_KEY", "AGENCY_LLM_MODEL",
+        "AGENCY_PRIMARY_BASE_URL", "AGENCY_PRIMARY_API_KEY", "AGENCY_PRIMARY_MODEL",
+        "AGENCY_SECONDARY_BASE_URL", "AGENCY_SECONDARY_API_KEY", "AGENCY_SECONDARY_MODEL",
+        "AGENCY_ALLOW_LOCAL_OLLAMA",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("AGENCY_LLM", "openai")
+    monkeypatch.setenv("AGENCY_LLM_BASE_URL", "http://127.0.0.1:9/v1")
+    monkeypatch.setenv("AGENCY_LLM_API_KEY", "test-key")
+    monkeypatch.setenv("AGENCY_LLM_MODEL", "test-model")
+
+    turn = dashboard.chat.answer_turn(
+        "Mind & Mythos production 015?",
+        persona="hq",
+        state_path_override=str(tmp_path / "horizon.db"),
     )
-    assert answer == "ok"
+    assert turn.answer == "ok", turn.as_dict()
+    assert captured["url"] == "http://127.0.0.1:9/v1/chat/completions"
     system = captured["body"]["messages"][0]
     assert system["role"] == "system"
+    assert dashboard.PROJECT_CONTEXT_HEADER in system["content"]
+    # The capsule really was quoted, so this is not passing by quoting nothing.
+    assert "Production 010 completed" in system["content"]
     assert _production_numbers(system["content"]) <= _production_numbers(capsule)
 
 

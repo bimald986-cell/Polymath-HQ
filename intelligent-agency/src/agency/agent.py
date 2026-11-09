@@ -35,10 +35,18 @@ class Agent(Node):
             self._backend = get_backend()
         return self._backend
 
-    def handle(self, task: str) -> str:
-        """Do the work and return the answer."""
+    def handle(self, task: str, system_prompt: Optional[str] = None) -> str:
+        """Do the work and return the answer.
+
+        ``system_prompt`` replaces this agent's own one-line auto-prompt for this
+        turn only. The interactive surfaces (``agency.chat``) pass the persona
+        and project-context prompt there, so a chat turn is answered by a routed
+        agent -- the same path ``cli.py ask`` takes -- instead of by a second
+        transport with a prompt of its own. Nothing else about the turn changes:
+        the portfolio context and the evidence policy are appended either way.
+        """
         context = get_portfolio_context(task)
-        prompt = self.system_prompt + "\n\n" + context
+        prompt = (system_prompt or self.system_prompt) + "\n\n" + context
         policy_file = (
             Path(__file__).resolve().parents[2]
             / "EVIDENCE_VERIFICATION_POLICY.md"
