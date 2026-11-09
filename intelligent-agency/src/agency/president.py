@@ -32,10 +32,10 @@ class President(Node):
     def set_advisor(self, advisor: PresidentAdvisor) -> None:
         self.advisor = advisor
 
-    def ask_advisor(self, topic: str) -> str:
+    def ask_advisor(self, topic: str, system_prompt: Optional[str] = None) -> str:
         if self.advisor is None:
             return "No President Advisor is configured."
-        return self.advisor.advise(topic)
+        return self.advisor.advise(topic, system_prompt=system_prompt)
 
     def add_director(self, director: Director) -> None:
         self.directors.append(director)
@@ -50,8 +50,21 @@ class President(Node):
         director, top_score = rank(query, self.directors)[0]
         return director if top_score > 0 else self.directors[0]
 
-    def handle(self, query: str) -> Dict[str, str]:
+    def route(self, query: str):
+        """Pick ``(director, agent)`` for ``query`` without calling a model.
+
+        This is the whole routing decision ``handle`` makes, exposed on its own so
+        an interactive surface can find out *which* agent answered -- and read
+        that agent's backend afterwards -- without duplicating the ranking rule
+        or paying for a second model call.
+        """
         director = self.best_director(query)
+        if director is None:
+            return None, None
+        return director, director.best_agent(query)
+
+    def handle(self, query: str, system_prompt: Optional[str] = None) -> Dict[str, str]:
+        director, agent = self.route(query)
         if director is None:
             return {
                 "president": self.name,
@@ -59,9 +72,19 @@ class President(Node):
                 "agent": "(none)",
                 "answer": "No directors are configured yet.",
             }
-        result = director.handle(query)
-        result["president"] = self.name
-        return result
+        if agent is None:
+            return {
+                "president": self.name,
+                "director": director.name,
+                "agent": "(none)",
+                "answer": f"The {director.name} team has no agents yet.",
+            }
+        return {
+            "president": self.name,
+            "director": director.name,
+            "agent": agent.name,
+            "answer": agent.handle(query, system_prompt=system_prompt),
+        }
 
     def tree(self) -> str:
         lines = [f"President: {self.name}"]

@@ -15,6 +15,7 @@ from .llm import (
     OpenAICompatibleBackend,
 )
 from .runtime import HorizonRuntime, RuntimeEvent
+from .chat import ChatTurn, answer_turn, provider_status
 from .policy import (
     PolicyEngine,
     PolicyAuditSink,
@@ -61,6 +62,7 @@ __all__ = [
     "get_backend", "require_live_backend", "LLMConfigError",
     "LLMBackend", "MockBackend", "OpenAICompatibleBackend",
     "HorizonRuntime", "RuntimeEvent",
+    "ChatTurn", "answer_turn", "provider_status",
     "PolicyEngine", "PolicyAuditSink", "ToolRisk", "PolicyDecision",
     "default_engine", "default_audit_sink",
     "run_agent_loop", "LoopResult", "LoopStep",
