@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 from agency import build_agency  # noqa: E402
-from agency import chat  # noqa: E402
+from agency import chat, doctor  # noqa: E402
 from agency.builtin_tools import default_registry  # noqa: E402
 from agency.llm import LLMConfigError, get_backend, require_live_backend  # noqa: E402
 from agency.policy import default_engine  # noqa: E402
@@ -84,6 +84,22 @@ def main(argv=None) -> int:
     sub.add_parser("list", help="List all directors")
     sub.add_parser("advisor-permissions", help="Show Horizon's repository authority")
 
+    p_doctor = sub.add_parser(
+        "doctor",
+        help="Say what is ready and what is not (no network calls, no writes)",
+    )
+    p_doctor.add_argument("--repo-root", default=None, help="Root the tools are sandboxed to")
+    p_doctor.add_argument("--state-path", default=None, help="State database to report on")
+    p_doctor.add_argument(
+        "--registry", default=None, help="Project registry to report on (default: core/projects.yaml)"
+    )
+    p_doctor.add_argument(
+        "--require-live",
+        action="store_true",
+        help="Exit non-zero when no real provider is configured",
+    )
+    p_doctor.add_argument("--json", action="store_true", help="Print the report as JSON")
+
     p_find = sub.add_parser("find", help="Show which fields match a query")
     p_find.add_argument("query", nargs="+")
     p_ask = sub.add_parser("ask", help="Route a request and get an answer")
@@ -118,6 +134,19 @@ def main(argv=None) -> int:
     )
 
     args = parser.parse_args(argv)
+
+    if args.command == "doctor":
+        # Runs before build_agency(): a broken org chart must be *reported*, not
+        # a traceback. No network calls, no writes (see agency/doctor.py).
+        report = doctor.diagnose(
+            config_path=args.config,
+            registry_path=args.registry,
+            state_path=args.state_path,
+            repo_root=args.repo_root,
+            require_live=args.require_live,
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True) if args.json else report.render())
+        return report.exit_code
 
     if args.command in ("tools", "tool", "loop"):
         return _run_tool_command(args)
