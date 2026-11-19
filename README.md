@@ -50,14 +50,63 @@ python app.py
 
 Windows: double-click `elevate-edge/run-ollama.bat`.
 
-## Quick start — Intelligent Agency
+## Quick start — Intelligent Agency (the HQ)
 
 ```bash
 cd intelligent-agency
 pip install -r requirements.txt
+
+# 1. What is ready, and what is missing (no network calls, no writes)
+python cli.py doctor
+
+# 2. The org chart and routing — works with no provider
 python cli.py tree
 python cli.py find "rewrite my resume for a marketing role"
+
+# 3. Real tools, through the policy gate
+python cli.py tools
+python cli.py tool read_file --arg path=README.md
+
+# 4. The control room — local only, no authentication, so keep it on 127.0.0.1
+python dashboard.py        # http://127.0.0.1:8765
 ```
+
+**Answers are only real once a provider is set.** With nothing configured, every
+surface (dashboard chat, `ask`, `advise`, the scheduled cycle) runs in
+`simulation` and says so, returning placeholder text instead of reasoning:
+
+```bash
+export AGENCY_LLM=openai                                  # 'openai' = any OpenAI-compatible endpoint
+export AGENCY_LLM_BASE_URL=https://api.openai.com/v1      # your endpoint's base, ending /v1
+export AGENCY_LLM_MODEL=<model id exactly as the provider spells it>
+export AGENCY_LLM_API_KEY=<your key>                      # never commit this
+```
+
+Local Ollama works through its OpenAI-compatible endpoint:
+`AGENCY_LLM_BASE_URL=http://127.0.0.1:11434/v1`, `AGENCY_LLM_API_KEY=ollama`.
+
+**Work a registered project.** `--project` takes the repository and default branch
+from [`core/projects.yaml`](core/projects.yaml); an unknown project is refused
+before any network call, and a contradicting `--repo` is an error, never a silent
+pick:
+
+```bash
+PYTHONPATH=src python -m agency.horizon_worker_main --once --project polymath-hq
+PYTHONPATH=src python -m agency.horizon_worker_main --once --project polymath-hq --publish-github
+```
+
+The four-hourly cycle (`.github/workflows/horizon-scheduled.yml`) reads the same
+four settings from repository **variables** (`AGENCY_LLM`,
+`AGENCY_LLM_BASE_URL`, `AGENCY_LLM_MODEL`) and the **secret**
+`AGENCY_LLM_API_KEY`. With nothing set it stays on mock by design and records
+`analysis_mode: simulation`; it never silently becomes real. The cycle has no
+tools, so it reasons and records a recommendation — it does not open PRs or edit
+the repo.
+
+**What a run costs.** `config/prices.yaml` ships empty on purpose, so every run
+reports `cost: unknown` rather than a made-up figure. Adding a rate is a data-only
+change: one entry naming the exact model, its published per-million-token input
+and output prices, and a source URL.
 
 ## License
 
