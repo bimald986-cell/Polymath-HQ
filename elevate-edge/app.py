@@ -24,33 +24,120 @@ from flask import Flask, jsonify, render_template_string, request
 ROOT = Path(__file__).resolve().parent
 ROLES_PATH = ROOT / "data" / "roles.json"
 
-# Reuse Intelligent Agency LLM backend when available
+# Reuse the Intelligent Agency LLM backend.
 _AGENCY_SRC = ROOT.parent / "intelligent-agency" / "src"
-if _AGENCY_SRC.is_dir():
+if _AGENCY_SRC.is_dir() and str(_AGENCY_SRC) not in sys.path:
     sys.path.insert(0, str(_AGENCY_SRC))
 
-try:
-    from agency.llm import get_backend  # type: ignore
-except Exception:  # pragma: no cover
-    def get_backend():
-        class _Mock:
-            def complete(self, system_prompt: str, user_prompt: str) -> str:
-                return (
-                    "[offline mock] Connect Ollama or set AGENCY_LLM=openai to get AI suggestions.\n"
-                    f"Request was: {user_prompt[:200]}"
-                )
+# The AI path must never pretend to be a model. If the backend package cannot be
+# imported we keep the reason and report it -- we do not substitute a mock that
+# answers with HTTP 200. (The old code did exactly that, and `/api/health` then
+# echoed the AGENCY_LLM env var, so the app claimed "openai" while returning
+# canned text.)
+_AGENCY_IMPORT_ERROR: Exception | None = None
+MockBackend = None
+LLMConfigError: type = Exception
+try:  # pragma: no cover - exercised by the environment, asserted in tests
+    from agency.llm import LLMConfigError, MockBackend, get_backend  # type: ignore  # noqa: F811
+except Exception as exc:  # noqa: BLE001 - recorded, never swallowed
+    _AGENCY_IMPORT_ERROR = exc
+    get_backend = None  # type: ignore[assignment]
 
-        return _Mock()
+
+class ProviderUnavailable(RuntimeError):
+    """No real model can answer right now. Never rendered as a normal answer."""
+
 
 app = Flask(__name__)
+# A CV + a few notes is small; refuse anything that would become a huge prompt.
+app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 
 with open(ROLES_PATH, encoding="utf-8") as f:
     ROLES = json.load(f)
 
 
+def _analysis_mode(backend) -> str:
+    """What would answer a call: 'live', 'simulation', 'unknown' or 'unavailable'."""
+    if backend is None:
+        return "unavailable"
+    if MockBackend is not None and isinstance(backend, MockBackend):
+        return "simulation"
+    if type(backend).__name__ == "MockBackend":
+        return "simulation"
+    if getattr(backend, "base_url", None):
+        return "live"
+    # A configured provider (e.g. the HQ's router) decides per call, so it cannot
+    # be classified before one runs -- but it is not a mock.
+    return "unknown"
+
+
+def _backend():
+    """The backend that will answer, or :class:`ProviderUnavailable`. No mock fallback."""
+    factory = app.config.get("ELEVATE_BACKEND_FACTORY")
+    if factory is not None:
+        return factory()
+    if get_backend is None:
+        raise ProviderUnavailable(
+            "The AI backend package could not be imported "
+            f"({type(_AGENCY_IMPORT_ERROR).__name__}: {_AGENCY_IMPORT_ERROR}). "
+            "Install elevate-edge/requirements.txt and keep the agency package reachable."
+        )
+    try:
+        return get_backend()
+    except LLMConfigError as exc:
+        raise ProviderUnavailable(str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 - a broken config is a status, not a crash
+        raise ProviderUnavailable(
+            f"The AI provider is misconfigured ({type(exc).__name__})."
+        ) from exc
+
+
+def ai_status() -> dict:
+    """Report the backend that really answers, not the one the env vars name."""
+    try:
+        backend = _backend()
+    except ProviderUnavailable as exc:
+        return {
+            "analysis_mode": "unavailable",
+            "live": False,
+            "model": None,
+            "detail": str(exc),
+        }
+    mode = _analysis_mode(backend)
+    model = getattr(backend, "model", None)
+    if mode == "simulation":
+        detail = (
+            "No provider is configured, so the backend would answer with canned text. "
+            "Set AGENCY_LLM=openai with AGENCY_LLM_BASE_URL / AGENCY_LLM_API_KEY / "
+            "AGENCY_LLM_MODEL (or a local Ollama endpoint)."
+        )
+    elif mode == "live":
+        detail = f"A real provider is configured; answers come from {model or 'the configured model'}."
+    else:
+        detail = "A provider is configured but which one answers is decided per call."
+    return {"analysis_mode": mode, "live": mode in ("live", "unknown"), "model": model, "detail": detail}
+
+
 def llm_complete(system: str, user: str) -> str:
-    backend = get_backend()
-    return backend.complete(system, user)
+    backend = _backend()
+    if _analysis_mode(backend) == "simulation":
+        raise ProviderUnavailable(
+            "No provider is configured, so there is no model answer to return."
+        )
+    text = backend.complete(system, user)
+    if not isinstance(text, str) or not text.strip():
+        raise ProviderUnavailable("The provider returned an empty answer.")
+    return text
+
+
+def _str_field(data: dict, name: str, default: str = "") -> str:
+    """A string field or a 400 -- never an AttributeError 500."""
+    value = data.get(name, default)
+    if value is None:
+        return default
+    if not isinstance(value, str):
+        raise ValueError(f"'{name}' must be a string.")
+    return value.strip()
 
 
 PAGE = r"""<!DOCTYPE html>
@@ -250,7 +337,10 @@ navBtns.forEach(b => b.onclick = () => show(b.dataset.view));
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => show(b.dataset.go));
 
 fetch('/api/health').then(r=>r.json()).then(j=>{
-  $('healthLine').textContent = `AI mode: ${j.llm_mode} · model: ${j.model} · roles loaded: ${j.roles}`;
+  const live = j.llm_mode === 'live';
+  $('healthLine').textContent = live
+    ? `AI: live · model: ${j.model} · roles loaded: ${j.roles}`
+    : `AI: ${j.llm_mode} · roles loaded: ${j.roles} — the AI buttons refuse rather than fake an answer.`;
 }).catch(()=>{$('healthLine').textContent='API offline';});
 
 function renderCv(){
@@ -360,14 +450,14 @@ def home():
 
 @app.get("/api/health")
 def health():
-    mode = os.getenv("AGENCY_LLM", "mock").lower()
-    model = os.getenv("AGENCY_LLM_MODEL", "(default)")
+    status = ai_status()
     return jsonify(
         {
             "ok": True,
-            "llm_mode": mode,
-            "model": model if mode == "openai" else "mock",
+            "llm_mode": status["analysis_mode"],
+            "model": status["model"] or "none",
             "roles": len(ROLES),
+            "ai": status,
         }
     )
 
@@ -377,11 +467,51 @@ def api_roles():
     return jsonify(ROLES)
 
 
+def _ai_answer(system: str, user: str):
+    """One AI call: report what will answer, then call it. Never a mock 200."""
+    status = ai_status()
+    if not status["live"]:
+        return (
+            jsonify(
+                {
+                    "error": f"AI is not available. {status['detail']} No AI text was produced.",
+                    "analysis_mode": status["analysis_mode"],
+                    "ai_available": False,
+                }
+            ),
+            503,
+        )
+    try:
+        text = llm_complete(system, user)
+    except ProviderUnavailable as exc:
+        return (
+            jsonify(
+                {
+                    "error": f"The AI provider is not answering. {exc} Nothing was generated.",
+                    "analysis_mode": status["analysis_mode"],
+                    "ai_available": False,
+                }
+            ),
+            503,
+        )
+    except Exception:  # noqa: BLE001 - provider internals never reach the browser
+        return (
+            jsonify({"error": "The AI provider failed. Please try again later."}),
+            502,
+        )
+    return jsonify({"text": text}), 200
+
+
 @app.post("/api/ai/bullets")
 def api_bullets():
-    data = request.get_json(silent=True) or {}
-    role = (data.get("role") or "professional").strip()
-    notes = (data.get("notes") or "").strip()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "Send a JSON object with 'role' and 'notes'."}), 400
+    try:
+        role = _str_field(data, "role") or "professional"
+        notes = _str_field(data, "notes")
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     system = (
         "You are an HR-informed CV writer for Elevate Edge. "
         "Write 4 strong, truthful-sounding achievement bullets for a CV. "
@@ -390,19 +520,20 @@ def api_bullets():
         "Return bullets only, each on its own line starting with '- '."
     )
     user = f"Target role/headline: {role}\n\nCandidate notes:\n{notes or '(none — write flexible examples clearly marked as examples)'}"
-    try:
-        text = llm_complete(system, user)
-        return jsonify({"text": text})
-    except Exception as exc:  # noqa: BLE001
-        return jsonify({"error": str(exc)}), 500
+    return _ai_answer(system, user)
 
 
 @app.post("/api/ai/star")
 def api_star():
-    data = request.get_json(silent=True) or {}
-    role = (data.get("role") or "").strip()
-    question = (data.get("question") or "").strip()
-    notes = (data.get("notes") or "").strip()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "Send a JSON object with 'role', 'question' and 'notes'."}), 400
+    try:
+        role = _str_field(data, "role")
+        question = _str_field(data, "question")
+        notes = _str_field(data, "notes")
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     system = (
         "You are an interview coach for Elevate Edge. "
         "Rewrite the user's notes into a clear STAR answer "
@@ -410,11 +541,7 @@ def api_star():
         "Do not invent facts not implied by the notes."
     )
     user = f"Role: {role}\nQuestion: {question}\nNotes:\n{notes}"
-    try:
-        text = llm_complete(system, user)
-        return jsonify({"text": text})
-    except Exception as exc:  # noqa: BLE001
-        return jsonify({"error": str(exc)}), 500
+    return _ai_answer(system, user)
 
 
 def main():
