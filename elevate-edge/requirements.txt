@@ -1,1 +1,4 @@
-Flask>=3.0
+Flask>=3.0,<4
+# The AI path imports agency.llm, whose package __init__ needs YAML. Without this
+# the import failed, a try/except hid it, and the app answered with mock text.
+PyYAML>=6.0

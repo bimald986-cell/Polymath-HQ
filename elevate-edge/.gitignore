@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+# Local SQLite database (created on first run)
+data/elevate.db
+data/elevate.db-journal
+data/elevate.db-wal

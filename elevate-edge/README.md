@@ -39,4 +39,10 @@ Do **not** use port **5060** — Chrome blocks it (`ERR_UNSAFE_PORT`, SIP). Defa
 
 ## Without AI
 
-App still runs; CV Builder and Role Guide work offline. AI buttons need Ollama (or another OpenAI-compatible backend).
+App still runs; CV Builder and Role Guide work offline.
+
+The AI buttons are **honest about it**: with no provider configured the endpoints
+answer **503** with `analysis_mode: simulation` and a message saying no AI text was
+produced. There is no hidden mock that returns 200 with canned text. `GET /api/health`
+reports the backend that actually answers (`live` / `simulation` / `unavailable`),
+not the `AGENCY_LLM` env var — so it cannot claim "openai" while a mock replies.
