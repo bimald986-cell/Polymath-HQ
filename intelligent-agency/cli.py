@@ -9,6 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 from agency import build_agency  # noqa: E402
+from agency import chat, doctor  # noqa: E402
 from agency.builtin_tools import default_registry  # noqa: E402
 from agency.llm import LLMConfigError, get_backend, require_live_backend  # noqa: E402
 from agency.policy import default_engine  # noqa: E402
@@ -83,6 +84,22 @@ def main(argv=None) -> int:
     sub.add_parser("list", help="List all directors")
     sub.add_parser("advisor-permissions", help="Show Horizon's repository authority")
 
+    p_doctor = sub.add_parser(
+        "doctor",
+        help="Say what is ready and what is not (no network calls, no writes)",
+    )
+    p_doctor.add_argument("--repo-root", default=None, help="Root the tools are sandboxed to")
+    p_doctor.add_argument("--state-path", default=None, help="State database to report on")
+    p_doctor.add_argument(
+        "--registry", default=None, help="Project registry to report on (default: core/projects.yaml)"
+    )
+    p_doctor.add_argument(
+        "--require-live",
+        action="store_true",
+        help="Exit non-zero when no real provider is configured",
+    )
+    p_doctor.add_argument("--json", action="store_true", help="Print the report as JSON")
+
     p_find = sub.add_parser("find", help="Show which fields match a query")
     p_find.add_argument("query", nargs="+")
     p_ask = sub.add_parser("ask", help="Route a request and get an answer")
@@ -118,6 +135,19 @@ def main(argv=None) -> int:
 
     args = parser.parse_args(argv)
 
+    if args.command == "doctor":
+        # Runs before build_agency(): a broken org chart must be *reported*, not
+        # a traceback. No network calls, no writes (see agency/doctor.py).
+        report = doctor.diagnose(
+            config_path=args.config,
+            registry_path=args.registry,
+            state_path=args.state_path,
+            repo_root=args.repo_root,
+            require_live=args.require_live,
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True) if args.json else report.render())
+        return report.exit_code
+
     if args.command in ("tools", "tool", "loop"):
         return _run_tool_command(args)
 
@@ -135,8 +165,11 @@ def main(argv=None) -> int:
             print(f"{'YES' if allowed else 'NO ':3}  {action}")
         return 0
     if args.command == "advise":
-        print(president.ask_advisor(" ".join(args.topic)))
-        return 0
+        turn = chat.answer_turn(" ".join(args.topic), persona="horizon", president=president)
+        print(turn.answer)
+        if turn.notice:
+            print(turn.notice, file=sys.stderr)
+        return 0 if turn.status == "ok" else 1
 
     query = " ".join(args.query)
     if args.command == "find":
@@ -145,13 +178,26 @@ def main(argv=None) -> int:
             print(f"  {sc:5.2f}  {director.name} -- {director.description}")
         return 0
     if args.command == "ask":
-        result = president.handle(query)
-        print(f"President: {result['president']}")
-        print(f"Director : {result['director']}")
-        print(f"Agent    : {result['agent']}")
+        # The same path the dashboard and the web app use (`agency.chat`): the
+        # President routes, the routed agent's configured backend answers, durable
+        # memory is recalled into the task, and the turn is recorded with its
+        # analysis mode. A mock answer is labelled a simulation, not presented as
+        # an answer.
+        turn = chat.answer_turn(query, president=president)
+        print(f"President: {president.name}")
+        print(f"Director : {turn.director}")
+        print(f"Agent    : {turn.agent}")
+        mode = turn.analysis_mode + (f" · {turn.model}" if turn.model else "")
+        if turn.run_id is not None:
+            mode += f" · run {turn.run_id}"
+        print(f"Mode     : {mode}")
         print("-" * 50)
-        print(result["answer"])
-        return 0
+        print(turn.answer)
+        if turn.notice:
+            print(f"\n{turn.notice}", file=sys.stderr)
+        if turn.record_error:
+            print(f"\nWARNING: {turn.record_error}", file=sys.stderr)
+        return 0 if turn.status == "ok" else 1
     return 1
 
 

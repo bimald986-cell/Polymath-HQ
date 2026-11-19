@@ -87,8 +87,14 @@ class PresidentAdvisor(Node):
             self._backend = get_backend()
         return self._backend
 
-    def advise(self, topic: str) -> str:
-        return self.backend.complete(self.system_prompt, topic)
+    def advise(self, topic: str, system_prompt: Optional[str] = None) -> str:
+        """Answer ``topic``, optionally under a caller-supplied system prompt.
+
+        ``agency.chat`` passes the persona + project-context prompt here for the
+        ``horizon`` chat persona, so the dashboard talks to the advisor through
+        the advisor's own backend rather than a transport of its own.
+        """
+        return self.backend.complete(system_prompt or self.system_prompt, topic)
 
     @property
     def last_usage(self) -> Dict[str, Any]:
