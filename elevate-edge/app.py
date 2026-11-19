@@ -14,15 +14,33 @@ Open http://127.0.0.1:8088
 """
 from __future__ import annotations
 
+import hmac
 import json
 import os
+import secrets
 import sys
+import time
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template_string, request
+from flask import (
+    Blueprint,
+    Flask,
+    current_app,
+    g,
+    jsonify,
+    redirect,
+    render_template_string,
+    request,
+    session,
+)
+from markupsafe import Markup, escape
+from werkzeug.security import check_password_hash, generate_password_hash
+
+import store
 
 ROOT = Path(__file__).resolve().parent
 ROLES_PATH = ROOT / "data" / "roles.json"
+DEFAULT_DB_PATH = ROOT / "data" / "elevate.db"
 
 # Reuse the Intelligent Agency LLM backend.
 _AGENCY_SRC = ROOT.parent / "intelligent-agency" / "src"
@@ -48,9 +66,7 @@ class ProviderUnavailable(RuntimeError):
     """No real model can answer right now. Never rendered as a normal answer."""
 
 
-app = Flask(__name__)
-# A CV + a few notes is small; refuse anything that would become a huge prompt.
-app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
+bp = Blueprint("elevate", __name__)
 
 with open(ROLES_PATH, encoding="utf-8") as f:
     ROLES = json.load(f)
@@ -73,7 +89,7 @@ def _analysis_mode(backend) -> str:
 
 def _backend():
     """The backend that will answer, or :class:`ProviderUnavailable`. No mock fallback."""
-    factory = app.config.get("ELEVATE_BACKEND_FACTORY")
+    factory = current_app.config.get("ELEVATE_BACKEND_FACTORY")
     if factory is not None:
         return factory()
     if get_backend is None:
@@ -159,6 +175,7 @@ header{display:flex;justify-content:space-between;align-items:center;gap:1rem;pa
 nav{display:flex;gap:.4rem;flex-wrap:wrap}
 nav button{background:transparent;border:1px solid transparent;color:var(--muted);padding:.45rem .75rem;border-radius:999px;cursor:pointer;font:inherit}
 nav button.active,nav button:hover{color:var(--text);border-color:var(--line);background:var(--panel)}
+nav a{color:var(--muted);padding:.45rem .75rem;border:1px solid var(--line);border-radius:999px;font-size:.9rem}
 main{max-width:1100px;margin:0 auto;padding:1.25rem}
 .hero{display:grid;gap:1.25rem;grid-template-columns:1.3fr 1fr;align-items:stretch}
 @media(max-width:800px){.hero{grid-template-columns:1fr}}
@@ -206,6 +223,7 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:1.5rem}
     <button data-view="cv">CV Builder</button>
     <button data-view="roles">Role Guide</button>
     <button data-view="interview">Interview</button>
+    <a href="/account">Account</a>
   </nav>
 </header>
 <main>
@@ -290,6 +308,8 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:1.5rem}
           <button class="btn btn-primary" id="btnSave">Save locally</button>
           <button class="btn btn-secondary" id="btnPrint">Print / PDF</button>
           <button class="btn btn-secondary" id="btnAiBullets">AI: suggest bullets</button>
+          <button class="btn btn-secondary" id="btnSaveAccount">Save to my account</button>
+          <button class="btn btn-secondary" id="btnLoadAccount">Load my account CV</button>
         </div>
         <div class="out" id="aiOut" style="margin-top:.75rem;display:none"></div>
       </div>
@@ -366,10 +386,28 @@ function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;',
 ['name','headline','contact','summary','experience','education','skills','tpl'].forEach(id=>$(id).addEventListener('input', renderCv));
 $('tpl').addEventListener('change', renderCv);
 
+function cvState(){
+  return {name:$('name').value,headline:$('headline').value,contact:$('contact').value,summary:$('summary').value,experience:$('experience').value,education:$('education').value,skills:$('skills').value,tpl:$('tpl').value};
+}
 $('btnSave').onclick = ()=>{
-  const data = {name:$('name').value,headline:$('headline').value,contact:$('contact').value,summary:$('summary').value,experience:$('experience').value,education:$('education').value,skills:$('skills').value,tpl:$('tpl').value};
-  localStorage.setItem('elevate_edge_cv', JSON.stringify(data));
+  localStorage.setItem('elevate_edge_cv', JSON.stringify(cvState()));
   alert('Saved in this browser.');
+};
+$('btnSaveAccount').onclick = async ()=>{
+  $('aiOut').style.display='block'; $('aiOut').textContent='Saving to your account…';
+  const r = await fetch('/api/cv',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:cvState(),title:$('name').value})});
+  if(r.status===401){ $('aiOut').textContent='Not signed in. Open Account → Log in to keep a CV on the server.'; return; }
+  const j = await r.json().catch(()=>({}));
+  $('aiOut').textContent = r.ok ? 'Saved to your account.' : (j.error||'Could not save.');
+};
+$('btnLoadAccount').onclick = async ()=>{
+  const r = await fetch('/api/cv');
+  if(r.status===401){ $('aiOut').style.display='block'; $('aiOut').textContent='Not signed in. Open Account → Log in to load your account CV.'; return; }
+  const j = await r.json();
+  $('aiOut').style.display='block';
+  if(!j.cv){ $('aiOut').textContent='No CV stored on your account yet.'; return; }
+  Object.keys(j.cv).forEach(k=>{ if($(k)) $(k).value = j.cv[k]; });
+  renderCv(); $('aiOut').textContent='Loaded from your account.';
 };
 (function load(){
   try{
@@ -443,12 +481,432 @@ $('btnStar').onclick = async ()=>{
 """
 
 
-@app.get("/")
+# ------------------------------------------------------------- sessions ----
+MIN_PASSWORD = 10
+LOGIN_MAX_FAILURES = 5
+LOGIN_WINDOW_SECONDS = 10 * 60
+# Failures per email, in this process only: enough for "5 failures per email per
+# 10 minutes -> 429", and a restart simply forgets them.
+LOGIN_FAILURES: dict[str, list[float]] = {}
+
+
+def _db():
+    if "db" not in g:
+        g.db = store.connect(current_app.config["ELEVATE_DB_PATH"])
+    return g.db
+
+
+def _close_db(exc=None):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
+
+
+def _too_large(exc):
+    return jsonify({"error": "Request body is too large."}), 413
+
+
+def csrf_token() -> str:
+    token = session.get("csrf")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["csrf"] = token
+    return token
+
+
+def _csrf_ok() -> bool:
+    expected = session.get("csrf")
+    supplied = request.headers.get("X-CSRF-Token")
+    if not supplied and request.form:
+        supplied = request.form.get("csrf_token")
+    if not supplied:
+        payload = request.get_json(silent=True)
+        if isinstance(payload, dict):
+            supplied = payload.get("csrf_token")
+    return bool(expected) and bool(supplied) and hmac.compare_digest(str(expected), str(supplied))
+
+
+def _csrf_failure():
+    return jsonify({"error": "Security token missing or invalid. Reload the page and try again."}), 400
+
+
+def _request_data() -> dict:
+    data: dict = {}
+    if request.form:
+        data.update(dict(request.form))
+    payload = request.get_json(silent=True)
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            data.setdefault(key, value)
+    return data
+
+
+def _wants_json() -> bool:
+    return bool(request.is_json) or "application/json" in request.headers.get("Accept", "")
+
+
+def current_user():
+    user_id = session.get("user_id")
+    if not user_id:
+        return None
+    user = store.get_user(_db(), user_id)
+    if user is None:  # deleted or tampered session
+        session.clear()
+    return user
+
+
+def _start_session(user_id: int) -> None:
+    """Log in: regenerate the session (new cookie, fresh CSRF token)."""
+    session.clear()
+    session["user_id"] = int(user_id)
+    session["csrf"] = secrets.token_urlsafe(32)
+
+
+def _recent_failures(email: str) -> list[float]:
+    now = time.time()
+    failures = [t for t in LOGIN_FAILURES.get(email, []) if now - t < LOGIN_WINDOW_SECONDS]
+    if failures:
+        LOGIN_FAILURES[email] = failures
+    else:
+        LOGIN_FAILURES.pop(email, None)
+    return failures
+
+
+def login_blocked(email: str) -> bool:
+    return len(_recent_failures(email)) >= LOGIN_MAX_FAILURES
+
+
+def _record_login_failure(email: str) -> None:
+    _recent_failures(email)
+    LOGIN_FAILURES.setdefault(email, []).append(time.time())
+
+
+def _clear_login_failures(email: str) -> None:
+    LOGIN_FAILURES.pop(email, None)
+
+
+def _email_problem(email: str) -> str | None:
+    if not email or " " in email or email.count("@") != 1 or len(email) > 254:
+        return "Enter a valid email address."
+    local, _, domain = email.partition("@")
+    if not local or "." not in domain or domain.startswith(".") or domain.endswith("."):
+        return "Enter a valid email address."
+    return None
+
+
+def _password_problem(password: str) -> str | None:
+    if not isinstance(password, str) or len(password) < MIN_PASSWORD:
+        return f"Password must be at least {MIN_PASSWORD} characters."
+    return None
+
+
+# ----------------------------------------------------------------- pages ----
+LAYOUT = """<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>{{ title }} — Elevate Edge</title>
+<style>
+:root{--bg:#0c1220;--panel:#141c2b;--line:#2a364a;--text:#eef2ff;--muted:#93a0b8;--accent:#3b82f6;--accent2:#14b8a6}
+*{box-sizing:border-box}body{margin:0;font-family:Segoe UI,system-ui,sans-serif;background:var(--bg);color:var(--text)}
+a{color:var(--accent2);text-decoration:none}
+header{display:flex;gap:1rem;justify-content:space-between;align-items:center;padding:1rem 1.25rem;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{font-weight:700;letter-spacing:.02em}.brand span{color:var(--accent2)}
+nav{display:flex;gap:.9rem;flex-wrap:wrap;align-items:center}
+main{max-width:820px;margin:0 auto;padding:1.25rem}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1.1rem;margin-bottom:1rem}
+label{display:block;font-size:.78rem;color:var(--muted);margin:.7rem 0 .25rem;text-transform:uppercase;letter-spacing:.04em}
+input{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:.65rem .75rem;font:inherit}
+button{border:none;border-radius:10px;padding:.65rem 1rem;font:inherit;font-weight:600;cursor:pointer;background:linear-gradient(135deg,var(--accent),#2563eb);color:#fff;margin-top:.9rem}
+button.danger{background:#b91c1c}
+.muted{color:var(--muted);font-size:.9rem}
+.err{color:#fca5a5}
+.ok{color:#6ee7b7}
+footer{text-align:center;color:var(--muted);font-size:.75rem;padding:1.5rem}
+</style></head>
+<body>
+<header>
+  <div class="brand">Elevate <span>Edge</span></div>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/account">Account</a>
+    <a href="/signup">Sign up</a>
+    <a href="/login">Log in</a>
+  </nav>
+</header>
+<main>{{ body }}</main>
+<footer>Elevate Edge · Polymath-HQ · Suggestions are not legal or employment advice</footer>
+</body></html>"""
+
+
+def _render(title: str, body: str, status: int = 200):
+    return render_template_string(LAYOUT, title=title, body=Markup(body)), status
+
+
+def _signup_form(error: str = "", email: str = "") -> str:
+    message = f'<p class="err">{escape(error)}</p>' if error else ""
+    return f"""
+<div class="panel">
+  <h2>Create your account</h2>
+  <p class="muted">A free account keeps your CV on the server and gives you
+  {store.PLANS['free']} AI drafts per 30 days. No card, no payment — nothing is charged.</p>
+  {message}
+  <form method="post" action="/signup">
+    <input type="hidden" name="csrf_token" value="{csrf_token()}"/>
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" autocomplete="email" value="{escape(email)}" required/>
+    <label for="password">Password (at least {MIN_PASSWORD} characters)</label>
+    <input id="password" name="password" type="password" autocomplete="new-password"
+           minlength="{MIN_PASSWORD}" required/>
+    <button type="submit">Create account</button>
+  </form>
+  <p class="muted">Already registered? <a href="/login">Log in</a>.</p>
+</div>"""
+
+
+def _login_form(error: str = "", email: str = "") -> str:
+    message = f'<p class="err">{escape(error)}</p>' if error else ""
+    return f"""
+<div class="panel">
+  <h2>Log in</h2>
+  {message}
+  <form method="post" action="/login">
+    <input type="hidden" name="csrf_token" value="{csrf_token()}"/>
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" autocomplete="email" value="{escape(email)}" required/>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required/>
+    <button type="submit">Log in</button>
+  </form>
+  <p class="muted">No account yet? <a href="/signup">Sign up</a>.</p>
+</div>"""
+
+
+def _account_page(user, error: str = "", notice: str = "") -> str:
+    usage = store.ai_usage(_db(), user["id"])
+    message = f'<p class="err">{escape(error)}</p>' if error else ""
+    notice_html = f'<p class="ok">{escape(notice)}</p>' if notice else ""
+    return f"""
+<div class="panel">
+  <h2>Your account</h2>
+  {message}{notice_html}
+  <p><strong>Email</strong><br/>{escape(user['email'])}</p>
+  <p><strong>Plan</strong><br/>{escape(usage['plan'])}</p>
+  <p><strong>AI drafts this period</strong><br/>
+     {usage['used']} used · {usage['remaining']} left of {usage['limit']}
+     (30-day window starting {escape(usage['period_start'])})</p>
+  <p class="muted">Upgrading is done by the operator: <code>python admin.py grant {escape(user['email'])} pro</code>.
+  Payments are not wired yet, so nothing can be charged here.</p>
+  <form method="post" action="/logout">
+    <input type="hidden" name="csrf_token" value="{csrf_token()}"/>
+    <button type="submit">Log out</button>
+  </form>
+</div>
+<div class="panel">
+  <h2>Delete account</h2>
+  <p class="muted">This deletes your account and the CV stored with it. It cannot be undone.</p>
+  <form method="post" action="/api/account/delete">
+    <input type="hidden" name="csrf_token" value="{csrf_token()}"/>
+    <label for="password">Confirm your password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required/>
+    <button type="submit" class="danger">Delete my account</button>
+  </form>
+</div>"""
+
+
+# ------------------------------------------------------------------ gate ----
+def _entitlement() -> dict:
+    """Who is asking, and how much AI they have left. The only source of truth."""
+    user = current_user()
+    if user is not None:
+        usage = store.ai_usage(_db(), user["id"])
+        return {"kind": "user", "user_id": user["id"], "email": user["email"], **usage}
+    used = session.get("anon_ai_calls", 0)
+    if not isinstance(used, int) or used < 0:
+        used = 0
+    limit = store.PLANS["free"]
+    return {
+        "kind": "anonymous",
+        "plan": "anonymous (not signed in)",
+        "used": used,
+        "limit": limit,
+        "remaining": max(0, limit - used),
+    }
+
+
+def _upgrade_path(ent: dict) -> str:
+    if ent["kind"] == "user":
+        return (
+            "Upgrade to Pro (200 AI drafts per 30 days): the operator runs "
+            f"`python admin.py grant {ent['email']} pro`. Payments are not connected yet, "
+            "so nothing is charged."
+        )
+    return (
+        "Create a free account at /signup, or ask the operator for a Pro account "
+        "(200 AI drafts per 30 days). Payments are not connected yet, so nothing is charged."
+    )
+
+
+def _record_successful_call(ent: dict) -> None:
+    if ent["kind"] == "user":
+        store.record_ai_call(_db(), ent["user_id"])
+    else:
+        session["anon_ai_calls"] = int(ent["used"]) + 1
+
+
+# ---------------------------------------------------------------- routes ----
+@bp.get("/")
 def home():
     return render_template_string(PAGE)
 
 
-@app.get("/api/health")
+@bp.get("/signup")
+def signup_page():
+    return _render("Sign up", _signup_form())
+
+
+@bp.post("/signup")
+def signup():
+    if not _csrf_ok():
+        return _csrf_failure()
+    data = _request_data()
+    email = store.normalize_email(data.get("email") if isinstance(data.get("email"), str) else "")
+    password = data.get("password") if isinstance(data.get("password"), str) else ""
+    wants_json = _wants_json()
+
+    problem = _email_problem(email)
+    if problem is None:
+        problem = _password_problem(password)
+    if problem is not None:
+        if wants_json:
+            return jsonify({"error": problem}), 400
+        return _render("Sign up", _signup_form(problem, email), 400)
+
+    try:
+        user_id = store.create_user(_db(), email, generate_password_hash(password))
+    except store.DuplicateEmail:
+        message = "That email is already registered. Try logging in instead."
+        if wants_json:
+            return jsonify({"error": message}), 409
+        return _render("Sign up", _signup_form(message, email), 409)
+
+    _start_session(user_id)
+    if wants_json:
+        return jsonify({"email": email, "plan": "free"}), 201
+    return redirect("/account", code=303)
+
+
+@bp.get("/login")
+def login_page():
+    return _render("Log in", _login_form())
+
+
+@bp.post("/login")
+def login():
+    if not _csrf_ok():
+        return _csrf_failure()
+    data = _request_data()
+    email = store.normalize_email(data.get("email") if isinstance(data.get("email"), str) else "")
+    password = data.get("password") if isinstance(data.get("password"), str) else ""
+    wants_json = _wants_json()
+
+    if login_blocked(email):
+        message = "Too many failed logins for that email. Try again in 10 minutes."
+        if wants_json:
+            return jsonify({"error": message}), 429
+        return _render("Log in", _login_form(message, email), 429)
+
+    user = store.get_user_by_email(_db(), email)
+    if user is None or not check_password_hash(user["password_hash"], password):
+        _record_login_failure(email)
+        message = "Email or password is incorrect."
+        if wants_json:
+            return jsonify({"error": message}), 401
+        return _render("Log in", _login_form(message, email), 401)
+
+    _clear_login_failures(email)
+    _start_session(user["id"])
+    if wants_json:
+        return jsonify({"email": user["email"], "plan": user["plan"]}), 200
+    return redirect("/account", code=303)
+
+
+@bp.post("/logout")
+def logout():
+    if not _csrf_ok():
+        return _csrf_failure()
+    session.clear()
+    if _wants_json():
+        return jsonify({"ok": True}), 200
+    return redirect("/", code=303)
+
+
+@bp.get("/account")
+def account():
+    user = current_user()
+    if user is None:
+        return redirect("/login", code=303)
+    return _render("Your account", _account_page(user))
+
+
+@bp.get("/api/cv")
+def api_cv_get():
+    user = current_user()
+    if user is None:
+        return jsonify({"error": "Sign in to use your account CV."}), 401
+    cv = store.get_cv(_db(), user["id"])
+    return jsonify(
+        {
+            "cv": cv["content"] if cv else None,
+            "title": cv["title"] if cv else None,
+            "updated_at": cv["updated_at"] if cv else None,
+        }
+    )
+
+
+@bp.put("/api/cv")
+def api_cv_put():
+    user = current_user()
+    if user is None:
+        return jsonify({"error": "Sign in to save a CV to your account."}), 401
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or "content" not in data:
+        return jsonify({"error": "Send JSON with 'content' (the CV builder state)."}), 400
+    content = data["content"]
+    if not isinstance(content, (dict, str)):
+        return jsonify({"error": "'content' must be an object or a string."}), 400
+    title = data.get("title")
+    if title is not None and not isinstance(title, str):
+        return jsonify({"error": "'title' must be a string."}), 400
+    # Any 'id'/'user_id' the caller sends is ignored: the row is chosen by session.
+    updated = store.save_cv(_db(), user["id"], content, title)
+    return jsonify({"ok": True, "updated_at": updated})
+
+
+@bp.post("/api/account/delete")
+def api_account_delete():
+    wants_json = _wants_json()
+    user = current_user()
+    if user is None:
+        if wants_json:
+            return jsonify({"error": "Sign in first."}), 401
+        return redirect("/login", code=303)
+    if not _csrf_ok():
+        return _csrf_failure()
+    data = _request_data()
+    password = data.get("password") if isinstance(data.get("password"), str) else ""
+    if not password or not check_password_hash(user["password_hash"], password):
+        message = "Password is incorrect. Your account was not deleted."
+        if wants_json:
+            return jsonify({"error": message}), 403
+        return _render("Your account", _account_page(user, error=message), 403)
+    store.delete_user(_db(), user["id"])
+    session.clear()
+    if wants_json:
+        return jsonify({"ok": True}), 200
+    return redirect("/", code=303)
+
+
+@bp.get("/api/health")
 def health():
     status = ai_status()
     return jsonify(
@@ -462,13 +920,17 @@ def health():
     )
 
 
-@app.get("/api/roles")
+@bp.get("/api/roles")
 def api_roles():
     return jsonify(ROLES)
 
 
 def _ai_answer(system: str, user: str):
-    """One AI call: report what will answer, then call it. Never a mock 200."""
+    """One AI call: is AI real, has the caller credit, then call the provider.
+
+    The gate is checked *before* the provider is called, so a capped caller never
+    costs a token; the counter is incremented only after a successful answer.
+    """
     status = ai_status()
     if not status["live"]:
         return (
@@ -481,6 +943,28 @@ def _ai_answer(system: str, user: str):
             ),
             503,
         )
+
+    entitlement = _entitlement()
+    if entitlement["used"] >= entitlement["limit"]:
+        upgrade = _upgrade_path(entitlement)
+        return (
+            jsonify(
+                {
+                    "error": (
+                        f"AI limit reached: {entitlement['limit']} drafts per 30 days on the "
+                        f"{entitlement['plan']} plan. No AI text was produced and the provider "
+                        f"was not called. {upgrade}"
+                    ),
+                    "limit": entitlement["limit"],
+                    "used": entitlement["used"],
+                    "remaining": 0,
+                    "plan": entitlement["plan"],
+                    "upgrade": upgrade,
+                }
+            ),
+            402,
+        )
+
     try:
         text = llm_complete(system, user)
     except ProviderUnavailable as exc:
@@ -499,10 +983,21 @@ def _ai_answer(system: str, user: str):
             jsonify({"error": "The AI provider failed. Please try again later."}),
             502,
         )
-    return jsonify({"text": text}), 200
+
+    _record_successful_call(entitlement)  # only a success is counted
+    return (
+        jsonify(
+            {
+                "text": text,
+                "plan": entitlement["plan"],
+                "remaining": max(0, entitlement["limit"] - entitlement["used"] - 1),
+            }
+        ),
+        200,
+    )
 
 
-@app.post("/api/ai/bullets")
+@bp.post("/api/ai/bullets")
 def api_bullets():
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
@@ -523,7 +1018,7 @@ def api_bullets():
     return _ai_answer(system, user)
 
 
-@app.post("/api/ai/star")
+@bp.post("/api/ai/star")
 def api_star():
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
@@ -544,11 +1039,56 @@ def api_star():
     return _ai_answer(system, user)
 
 
+def _secret_key(dev: bool) -> str:
+    key = os.getenv("ELEVATE_SECRET_KEY", "").strip()
+    if key:
+        return key
+    if dev:
+        print(
+            "!! ELEVATE_SECRET_KEY is not set. Running in development mode with an\n"
+            "!! ephemeral session key: every restart logs everyone out. Never run a\n"
+            "!! real deployment this way -- set ELEVATE_SECRET_KEY.",
+            file=sys.stderr,
+        )
+        return secrets.token_hex(32)
+    raise RuntimeError(
+        "ELEVATE_SECRET_KEY is not set, so sessions cannot be signed. Refusing to start. "
+        "Set ELEVATE_SECRET_KEY to a long random value, or ELEVATE_DEV=1 for local "
+        "development only (ephemeral key, one loud warning)."
+    )
+
+
+def create_app(config: dict | None = None) -> Flask:
+    """Build the app. Refuses to start without a session secret outside dev."""
+    config = dict(config or {})
+    dev = os.getenv("ELEVATE_DEV", "") == "1"
+    application = Flask(__name__)
+    application.config.update(
+        MAX_CONTENT_LENGTH=64 * 1024,
+        ELEVATE_DB_PATH=os.getenv("ELEVATE_DB_PATH") or str(DEFAULT_DB_PATH),
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=not dev,
+        ELEVATE_DEV=dev,
+        SECRET_KEY=config.get("SECRET_KEY") or _secret_key(dev),
+    )
+    application.config.update(config)
+    store.init_db(application.config["ELEVATE_DB_PATH"])
+    application.register_blueprint(bp)
+    application.teardown_appcontext(_close_db)
+    application.register_error_handler(413, _too_large)
+    return application
+
+
+app = create_app()
+
+
 def main():
     host = os.getenv("ELEVATE_HOST", "127.0.0.1")
     # 8088 — safe in Chrome. Avoid 5060 (SIP; ERR_UNSAFE_PORT).
     port = int(os.getenv("ELEVATE_PORT", "8088"))
     print(f"Elevate Edge → http://{host}:{port}")
+    print(f"Database: {app.config['ELEVATE_DB_PATH']}")
     print("Stop with Ctrl+C")
     app.run(host=host, port=port, debug=False)
 
