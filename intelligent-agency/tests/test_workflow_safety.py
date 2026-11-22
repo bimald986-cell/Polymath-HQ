@@ -5,9 +5,12 @@ model responses, or the SQLite database as a public Actions artifact.
 """
 from pathlib import Path
 
+import yaml
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW_PATH = REPOSITORY_ROOT / ".github" / "workflows" / "horizon-scheduled.yml"
+CI_WORKFLOW_PATH = REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml"
 
 
 def test_mock_mode_does_not_restore_persistent_state_cache():
@@ -28,3 +31,9 @@ def test_public_artifact_and_console_output_are_sanitized():
     assert "path: intelligent-agency/horizon-audit-summary.json" in upload_step
     assert "safe_result = {key: result.get(key) for key in ('status', 'analysis_mode', 'cycle')}" in workflow
     assert "json.dump(summary, fh, sort_keys=True)" in workflow
+
+
+def test_ci_workflow_uses_only_read_only_repository_permissions():
+    workflow = yaml.safe_load(CI_WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    assert workflow["permissions"] == {"contents": "read"}
