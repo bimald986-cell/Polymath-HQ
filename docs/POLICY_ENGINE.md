@@ -87,3 +87,18 @@ value, both raise `LLMConfigError` instead of answering with mock. `AGENCY_LLM=r
 refuses when no real `AGENCY_PRIMARY_*` / `AGENCY_SECONDARY_*` provider is complete -
 local Ollama is appended only when `AGENCY_ALLOW_LOCAL_OLLAMA` opts into it, so a
 router can no longer *look* live while running on a local guess.
+
+
+## Test subprocess environment boundary (2026-10-24)
+
+The built-in `run_tests` tool passes a minimal allowlisted environment to pytest.
+It retains ordinary runtime settings needed to start Python and temporary files, and
+sets `PYTHONDONTWRITEBYTECODE=1` plus UTF-8 output encoding. It does not forward
+arbitrary parent variables such as model API keys, GitHub tokens, cloud credentials,
+or custom environment settings.
+
+This is defense in depth, not a complete operating-system sandbox. Repository test
+code still runs with the runner's user permissions and may be able to access files
+inside its working environment or use the network. Use an isolated runner and
+network restrictions for untrusted repositories; never place production credentials
+in a runner that executes untrusted code.
